@@ -41,13 +41,13 @@ contract CrossChainPriceNFT is ERC721, ERC721URIStorage {
             color: "#0000ff" //blue
         });
         chain[1] = ChainStruct ({
-            code: 14767482510784806043,
+            code: 16281711391670634445,
             name: "Polygon",
             color: "#ff0000" //red
         });
         chain[2] = ChainStruct ({
-            code: 12532609583862916517,
-            name: "Mumbai",
+            code: 13264668187771770619,
+            name: "BSC",
             color: "#4b006e" //purple
         });
 
@@ -68,10 +68,10 @@ contract CrossChainPriceNFT is ERC721, ERC721URIStorage {
 
     function mintFrom(address to, uint256 sourceId) public {
         // sourceId 0 Sepolia, 1 Fuji, 2 Mumbai
-        uint256 tokenId = tokenIdCounter++;
+        uint256 tokenId = tokenIdCounter;
         _safeMint(to, tokenId);
         updateMetaData(tokenId, sourceId);    
-        tokenIdCounter--;
+        tokenIdCounter++;
     }
 
     // Update MetaData
@@ -166,9 +166,4 @@ contract CrossChainPriceNFT is ERC721, ERC721URIStorage {
         return super.supportsInterface(interfaceId);
     }
 
-   function _burn(uint256 tokenId)
-        internal override(ERC721)
-    {
-        super._burn(tokenId);
-    }
 }
