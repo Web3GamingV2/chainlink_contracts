@@ -6,7 +6,7 @@ import {ConfirmedOwner} from "@chainlink/contracts/src/v0.8/shared/access/Confir
 import {FunctionsRequest} from "@chainlink/contracts/src/v0.8/functions/v1_0_0/libraries/FunctionsRequest.sol";
 
 // https://remix.ethereum.org/#url=https://docs.chain.link/samples/ChainlinkFunctions/GettingStartedFunctionsConsumer.sol&autoCompile=true&lang=en&optimize=false&runs=200&evmVersion=null&version=soljson-v0.8.19+commit.7dd6d404.js
-contract ChainlinkFC  is FunctionsClient, ConfirmedOwner {
+contract ChainlinkFC is FunctionsClient, ConfirmedOwner {
     using FunctionsRequest for FunctionsRequest.Request;
 
     // State variables to store the last request ID, response, and error
@@ -18,12 +18,7 @@ contract ChainlinkFC  is FunctionsClient, ConfirmedOwner {
     error UnexpectedRequestID(bytes32 requestId);
 
     // Event to log responses
-    event Response(
-        bytes32 indexed requestId,
-        string character,
-        bytes response,
-        bytes err
-    );
+    event Response(bytes32 indexed requestId, string character, bytes response, bytes err);
 
     // Router address - Hardcoded for Sepolia
     // Check to get the router address for your supported network https://docs.chain.link/chainlink-functions/supported-networks
@@ -32,24 +27,16 @@ contract ChainlinkFC  is FunctionsClient, ConfirmedOwner {
     // JavaScript source code
     // Fetch character name from the Star Wars API.
     // Documentation: https://swapi.info/people
-    string source =
-        "const characterId = args[0];"
-        "const apiResponse = await Functions.makeHttpRequest({"
-        "url: `https://swapi.info/api/people/${characterId}/`"
-        "});"
-        "if (apiResponse.error) {"
-        "throw Error('Request failed');"
-        "}"
-        "const { data } = apiResponse;"
-        "return Functions.encodeString(data.name);";
+    string source = "const characterId = args[0];" "const apiResponse = await Functions.makeHttpRequest({"
+        "url: `https://swapi.info/api/people/${characterId}/`" "});" "if (apiResponse.error) {"
+        "throw Error('Request failed');" "}" "const { data } = apiResponse;" "return Functions.encodeString(data.name);";
 
     //Callback gas limit
     uint32 gasLimit = 300000;
 
     // donID - Hardcoded for Sepolia
     // Check to get the donID for your supported network https://docs.chain.link/chainlink-functions/supported-networks
-    bytes32 donID =
-        0x66756e2d657468657265756d2d7365706f6c69612d3100000000000000000000;
+    bytes32 donID = 0x66756e2d657468657265756d2d7365706f6c69612d3100000000000000000000;
 
     // State variable to store the returned character information
     string public character;
@@ -65,21 +52,17 @@ contract ChainlinkFC  is FunctionsClient, ConfirmedOwner {
      * @param args The arguments to pass to the HTTP request
      * @return requestId The ID of the request
      */
-    function sendRequest(
-        uint64 subscriptionId,
-        string[] calldata args
-    ) external onlyOwner returns (bytes32 requestId) {
+    function sendRequest(uint64 subscriptionId, string[] calldata args)
+        external
+        onlyOwner
+        returns (bytes32 requestId)
+    {
         FunctionsRequest.Request memory req;
         req.initializeRequestForInlineJavaScript(source); // Initialize the request with JS code
         if (args.length > 0) req.setArgs(args); // Set the arguments for the request
 
         // Send the request and store the request ID
-        s_lastRequestId = _sendRequest(
-            req.encodeCBOR(),
-            subscriptionId,
-            gasLimit,
-            donID
-        );
+        s_lastRequestId = _sendRequest(req.encodeCBOR(), subscriptionId, gasLimit, donID);
 
         return s_lastRequestId;
     }
@@ -90,11 +73,7 @@ contract ChainlinkFC  is FunctionsClient, ConfirmedOwner {
      * @param response The HTTP response data
      * @param err Any errors from the Functions request
      */
-    function fulfillRequest(
-        bytes32 requestId,
-        bytes memory response,
-        bytes memory err
-    ) internal override {
+    function fulfillRequest(bytes32 requestId, bytes memory response, bytes memory err) internal override {
         if (s_lastRequestId != requestId) {
             revert UnexpectedRequestID(requestId); // Check if request IDs match
         }

@@ -5,20 +5,18 @@ import {Script, console} from "forge-std/Script.sol";
 
 // forge script script/ChainlinkFC.s.sol:ChainlinkFCScript --rpc-url $WEB3GAMING_ALCHEMY_RPC_URL --private-key $WEB3GAMING_PRIVATE_KEY --broadcast --verify --etherscan-api-key $WEB3GAMING_ETHERSCAN_API_KEY
 /**
-  == Logs ==
-  Deploying contracts with the account: 0x355eb1c3D6dF0642b3abe2785e821C574837C79f
-  GettingStartedFunctionsConsumer address: 0x2fA187E546862D5d3B614BF9E733f92A1DB91070
-  Contract owner: 0x355eb1c3D6dF0642b3abe2785e821C574837C79f
-  Is deployer owner? true
-  cast call --rpc-url $WEB3GAMING_ALCHEMY_RPC_URL 0x2fA187E546862D5d3B614BF9E733f92A1DB91070 "character()(string)"
-  cast send --rpc-url $WEB3GAMING_ALCHEMY_RPC_URL --private-key $WEB3GAMING_PRIVATE_KEY 0x2fA187E546862D5d3B614BF9E733f92A1DB91070 "sendRequest(uint64,string[])(bytes32)" 4605 "[1]"
-  cast call --rpc-url $WEB3GAMING_ALCHEMY_RPC_URL 0x2fA187E546862D5d3B614BF9E733f92A1DB91070 "s_lastError()"
+ * == Logs ==
+ *   Deploying contracts with the account: 0x355eb1c3D6dF0642b3abe2785e821C574837C79f
+ *   GettingStartedFunctionsConsumer address: 0x2fA187E546862D5d3B614BF9E733f92A1DB91070
+ *   Contract owner: 0x355eb1c3D6dF0642b3abe2785e821C574837C79f
+ *   Is deployer owner? true
+ *   cast call --rpc-url $WEB3GAMING_ALCHEMY_RPC_URL 0x2fA187E546862D5d3B614BF9E733f92A1DB91070 "character()(string)"
+ *   cast send --rpc-url $WEB3GAMING_ALCHEMY_RPC_URL --private-key $WEB3GAMING_PRIVATE_KEY 0x2fA187E546862D5d3B614BF9E733f92A1DB91070 "sendRequest(uint64,string[])(bytes32)" 4605 "[1]"
+ *   cast call --rpc-url $WEB3GAMING_ALCHEMY_RPC_URL 0x2fA187E546862D5d3B614BF9E733f92A1DB91070 "s_lastError()"
  */
-
 import {ChainlinkFC} from "../src/ChainlinkFC.sol";
 
 contract ChainlinkFCScript is Script {
-    
     function run() external {
         // 获取部署者私钥
         string memory privateKey = vm.envString("WEB3GAMING_PRIVATE_KEY");
