@@ -37,7 +37,7 @@ contract SubscriptionConsumer is VRFConsumerBaseV2Plus {
     // The gas lane to use, which specifies the maximum gas price to bump to.
     // For a list of available gas lanes on each network,
     // see https://docs.chain.link/vrf/v2-5/supported-networks
-    bytes32 public keyHash = 0x787d74caea10b2b357790d5b5247c2f63d1d91572a9846f780606e4d953677ae;
+    bytes32 public keyHash;
 
     // Depends on the number of requested values that you want sent to the
     // fulfillRandomWords() function. Storing each word costs about 20,000 gas,
@@ -45,27 +45,31 @@ contract SubscriptionConsumer is VRFConsumerBaseV2Plus {
     // this limit based on the network that you select, the size of the request,
     // and the processing of the callback request in the fulfillRandomWords()
     // function.
-    uint32 public callbackGasLimit = 100000;
+    // uint32 public callbackGasLimit = 100000;
 
     // The default is 3, but you can set this higher.
-    uint16 public requestConfirmations = 3;
+    // uint16 public requestConfirmations = 3;
 
     // For this example, retrieve 2 random values in one request.
     // Cannot exceed VRFCoordinatorV2_5.MAX_NUM_WORDS.
-    uint32 public numWords = 2;
+    // uint32 public numWords = 2;
 
     /**
      * HARDCODED FOR SEPOLIA
      * COORDINATOR: 0x9DdfaCa8183c41ad55329BdeeD9F6A8d53168B1B
+     * HARDCODED FOR AMOY
+     * COORDINATOR: 0x343300b5d84D444B2ADc9116FEF1bED02BE49Cf2
      */
-    constructor(uint256 subscriptionId) VRFConsumerBaseV2Plus(0x9DdfaCa8183c41ad55329BdeeD9F6A8d53168B1B) {
-        s_subscriptionId = subscriptionId;
+    constructor(address _vrfCoordinator, uint256 _subscriptionId, bytes32 _keyHash) VRFConsumerBaseV2Plus(_vrfCoordinator) {
+        s_subscriptionId = _subscriptionId;
+        keyHash = _keyHash;
     }
 
     // Assumes the subscription is funded sufficiently.
     // @param enableNativePayment: Set to `true` to enable payment in native tokens, or
     // `false` to pay in LINK
-    function requestRandomWords(bool enableNativePayment) external onlyOwner returns (uint256 requestId) {
+    function requestRandomWords(
+        bool enableNativePayment, uint32 numWords, uint16 requestConfirmations, uint32 callbackGasLimit) external onlyOwner returns (uint256 requestId) {
         // Will revert if subscription is not set and funded.
         requestId = s_vrfCoordinator.requestRandomWords(
             VRFV2PlusClient.RandomWordsRequest({
