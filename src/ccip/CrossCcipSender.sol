@@ -20,12 +20,6 @@ contract CrossSourceMinter is ICrossChainSender, ConfirmedOwner { // Implement i
     IRouterClient public immutable router; // Make router immutable
     LinkTokenInterface public immutable linkToken; // Make linkToken immutable (assuming LINK is always the fee token)
 
-    /**
-     * @notice Constructor to initialize the contract.
-     * @param _routerAddress The address of the CCIP Router contract on the source chain.
-     * @param _linkAddress The address of the LINK token contract on the source chain.
-     * @param _owner The initial owner of the contract.
-     */
     constructor(address _routerAddress, address _linkAddress, address _owner) ConfirmedOwner(_owner) {
         // Validate addresses
         require(_routerAddress != address(0), "Invalid router address");
@@ -38,29 +32,22 @@ contract CrossSourceMinter is ICrossChainSender, ConfirmedOwner { // Implement i
         linkToken.approve(_routerAddress, type(uint256).max);
     }
 
-    /**
-     * @notice Sends a generic message via CCIP using LINK as the fee token.
-     * @param _destinationChainSelector The chain selector of the destination chain.
-     * @param _receiver The address of the receiver contract on the destination chain.
-     * @param _data The data payload to send (e.g., encoded function call).
-     * @param _gasLimit Optional gas limit for the execution on the destination chain. Use 0 for default.
-     * @return messageId The unique identifier of the CCIP message sent.
-     */
     function sendMessage(
         uint64 _destinationChainSelector,
         address _receiver,
-        bytes calldata _data,
-        uint256 _gasLimit // Use 0 for default gas limit estimation by CCIP Router
-    ) external override onlyOwner returns (bytes32 messageId) { // Implement interface method, add onlyOwner
-        // Create the CCIP message struct
+        address _targetContract,
+        bytes calldata _targetCallData,
+        uint256 _gasLimit
+    ) external override onlyOwner returns (bytes32 messageId) {
+        bytes memory combinedData = abi.encodePacked(_targetContract, _targetCallData);
         Client.EVM2AnyMessage memory message = Client.EVM2AnyMessage({
-            receiver: abi.encode(_receiver), // abi.encode the receiver address
-            data: _data, // Use the provided data payload
-            tokenAmounts: new Client.EVMTokenAmount[](0), // No token transfers in this example
+            receiver: abi.encode(_receiver),
+            data: combinedData,
+            tokenAmounts: new Client.EVMTokenAmount[](0),
             extraArgs: Client._argsToBytes(
-                Client.EVMExtraArgsV1({gasLimit: _gasLimit}) // Use provided gas limit
+                Client.EVMExtraArgsV1({gasLimit: _gasLimit})
             ),
-            feeToken: address(linkToken) // Pay fees in LINK
+            feeToken: address(linkToken)
         });
 
         // Get the fee required to send the message
@@ -71,41 +58,22 @@ contract CrossSourceMinter is ICrossChainSender, ConfirmedOwner { // Implement i
         if (fees > currentBalance) {
             revert NotEnoughBalance(currentBalance, fees);
         }
-
-        // Send the message through the router
         messageId = router.ccipSend(_destinationChainSelector, message);
-
-        // Emit the event defined in the interface
-        emit MessageSent(messageId, _destinationChainSelector, _receiver, _data, address(linkToken), fees);
+        emit MessageSent(messageId, _destinationChainSelector, _receiver, combinedData, address(linkToken), fees);
 
         return messageId;
     }
 
-    /**
-     * @notice Returns the LINK balance of a given account.
-     * @param account The address to check the balance of.
-     * @return The LINK token balance.
-     */
     function linkBalance(address account) public view returns (uint256) {
         return linkToken.balanceOf(account);
     }
 
-    /**
-     * @notice Allows the owner to withdraw LINK tokens from the contract.
-     * @param beneficiary The address to receive the withdrawn tokens.
-     */
     function withdrawLink(address beneficiary) public onlyOwner {
         uint256 amount = linkToken.balanceOf(address(this));
         if (amount == 0) revert NothingToWithdraw();
         linkToken.transfer(beneficiary, amount);
     }
 
-    /**
-     * @notice Allows the owner to withdraw any ERC20 token accidentally sent to this contract.
-     * @dev Excludes the LINK token which is handled by withdrawLink.
-     * @param tokenAddress The address of the ERC20 token to withdraw.
-     * @param beneficiary The address to receive the withdrawn tokens.
-     */
     function withdrawToken(address tokenAddress, address beneficiary) public onlyOwner {
         require(tokenAddress != address(linkToken), "Use withdrawLink for LINK");
         IERC20 token = IERC20(tokenAddress);

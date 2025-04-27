@@ -13,18 +13,15 @@ import "../interfaces/ICrossChainReceiverHandler.sol"; // Import the handler int
  */
 contract CrossCcipReceiver is CCIPReceiver, ConfirmedOwner {
 
-    // Address of the handler contract that implements ICrossChainReceiverHandler
-    address public messageHandler;
-
-    // Mapping to store allowed senders for specific source chains
-    // allowedSenders[sourceChainSelector][senderAddress] => isAllowed
-    mapping(uint64 => mapping(address => bool)) public allowedSenders;
-
     // Custom Errors
     error InvalidRouter(address router); // If the message is not sent by the configured router
     error SenderNotAllowed(uint64 sourceChainSelector, address sender); // If the sender is not whitelisted for the source chain
     error InvalidHandlerAddress(address handler); // If the handler address is invalid
     error HandlerCallFailed(); // If the call to the handler contract fails
+
+    error TargetCallFailed(address target, bytes data, bytes reason);
+    error InvalidPackedDataLength(uint256 length);
+
 
     // Events
     event MessageReceived(
@@ -38,98 +35,77 @@ contract CrossCcipReceiver is CCIPReceiver, ConfirmedOwner {
     event SenderDisallowed(uint64 indexed sourceChainSelector, address indexed sender);
     event HandlerUpdated(address indexed oldHandler, address indexed newHandler);
 
-    /**
-     * @notice Constructor initializes the CCIP receiver.
-     * @param _router The address of the CCIP Router contract on this chain.
-     * @param _initialOwner The initial owner of this contract.
-     * @param _handler The address of the contract implementing ICrossChainReceiverHandler to process messages.
-     */
-    constructor(address _router, address _initialOwner, address _handler)
+    constructor(address _router, address _initialOwner)
         CCIPReceiver(_router)
         ConfirmedOwner(_initialOwner)
     {
-        if (_handler == address(0)) revert InvalidHandlerAddress(_handler);
-        messageHandler = _handler;
-        emit HandlerUpdated(address(0), _handler);
     }
 
-    /**
-     * @notice Internal function called by the CCIP Router when a message is received.
-     * @param message The CCIP message containing source chain, sender, data, etc.
-     * @dev Validates the sender and source chain against the allowed list.
-     *      If valid, calls the configured message handler contract.
-     *      Overrides the function from CCIPReceiver.
-     */
     function _ccipReceive(Client.Any2EVMMessage memory message) internal override {
-        // Basic validation: Check if the message came from the configured router
-        // This check is implicitly done by the CCIPReceiver modifier, but explicit check can be added if needed.
-        // if(msg.sender != i_router) revert InvalidRouter(msg.sender);
-
-        // Decode sender address
-        // It's important to ensure the sender field is correctly decoded as an address.
-        // If the sender format might vary, add more robust decoding/validation.
         address sender = abi.decode(message.sender, (address));
         uint64 sourceChainSelector = message.sourceChainSelector;
-
-        if (!allowedSenders[sourceChainSelector][sender]) {
-            revert SenderNotAllowed(sourceChainSelector, sender);
-        }
+        bytes memory packedData = message.data;
+        
+       (address targetContract, bytes memory targetCallDataForHandler) = _loadPackedData(packedData);
 
         // Emit event before calling handler
-        emit MessageReceived(message.messageId, sourceChainSelector, sender, message.data, messageHandler);
+        emit MessageReceived(message.messageId, sourceChainSelector, sender, targetCallDataForHandler, targetContract);
 
         // Call the handler contract to process the message
-        try ICrossChainReceiverHandler(messageHandler).handleMessage(sourceChainSelector, sender, message.data) returns (bool success) {
+        try ICrossChainReceiverHandler(targetContract).handleMessage(sourceChainSelector, sender, targetCallDataForHandler) returns (bool success) {
             if (!success) {
                 revert HandlerCallFailed();
             }
-        } catch {
-            revert HandlerCallFailed();
+        } catch (bytes memory reason) {
+             revert(string(abi.encodePacked("HandlerCallFailed: ", string(reason))));
         }
     }
 
-    // --- Admin Functions ---
+    function _loadPackedData(bytes memory packedData) internal pure returns (address, bytes memory) {
+        uint256 dataLength = packedData.length;
+        if (dataLength < 20) {
+            revert InvalidPackedDataLength(dataLength); // Must be at least 20 bytes for the address
+        }
 
-    /**
-     * @notice Allows the owner to whitelist a sender address for a specific source chain.
-     * @param _sourceChainSelector The chain selector of the source chain.
-     * @param _sender The address of the sender contract on the source chain.
-     */
-    function allowSender(uint64 _sourceChainSelector, address _sender) external onlyOwner {
-        require(_sender != address(0), "Invalid sender address");
-        allowedSenders[_sourceChainSelector][_sender] = true;
-        emit SenderAllowed(_sourceChainSelector, _sender);
+        address targetContract;
+        bytes memory targetCallData;
+        assembly {
+            // Load the first 32 bytes from packedData (address is right-aligned)
+            let word0 := mload(add(packedData, 0x20))
+            // Extract address (last 20 bytes of the first word)
+            targetContract := and(word0, 0xffffffffffffffffffffffffffffffffffffffff)
+
+            // Calculate the length of the targetCallData
+            let callDataLength := sub(dataLength, 20)
+            // Allocate memory for targetCallData (+32 bytes for length prefix)
+            targetCallData := mload(0x40)
+            // Store the length prefix
+            mstore(targetCallData, callDataLength)
+            // Copy the call data itself (starts after the 20-byte address)
+            // Source offset: packedData.offset + 20
+            // Destination offset: targetCallData + 32 (after length prefix)
+            let srcOffset := add(packedData, 52)
+            let destOffset := add(targetCallData, 32)
+            // for { let i := 0 } lt(i, callDataLength) { i := add(i, 32) } {
+            //     mstore(add(destOffset, i), mload(add(srcOffset, i)))
+            // }
+            for { let i := 0 } lt(i, callDataLength) { i := add(i, 32) } {
+                let chunkSize := sub(callDataLength, i)
+                if gt(chunkSize, 32) { chunkSize := 32 }
+                let temp := mload(add(srcOffset, i))
+                if lt(chunkSize, 32) {
+                    let mask := sub(shl(mul(8, sub(32, chunkSize)), 1), 1)
+                    temp := and(temp, not(mask))
+                }
+                mstore(add(destOffset, i), temp)
+            }
+            // Update free memory pointer
+            mstore(0x40, add(targetCallData, add(callDataLength, 32)))
+        }
+        return (
+            targetContract,
+            targetCallData
+        );
     }
 
-    /**
-     * @notice Allows the owner to remove a sender address from the whitelist for a specific source chain.
-     * @param _sourceChainSelector The chain selector of the source chain.
-     * @param _sender The address of the sender contract on the source chain.
-     */
-    function disallowSender(uint64 _sourceChainSelector, address _sender) external onlyOwner {
-        require(_sender != address(0), "Invalid sender address");
-        allowedSenders[_sourceChainSelector][_sender] = false;
-        emit SenderDisallowed(_sourceChainSelector, _sender);
-    }
-
-    /**
-     * @notice Allows the owner to update the message handler contract address.
-     * @param _newHandler The address of the new handler contract.
-     */
-    function updateHandler(address _newHandler) external onlyOwner {
-        if (_newHandler == address(0)) revert InvalidHandlerAddress(_newHandler);
-        address oldHandler = messageHandler;
-        messageHandler = _newHandler;
-        emit HandlerUpdated(oldHandler, _newHandler);
-    }
-
-    /**
-     * @notice Checks if a specific sender is allowed from a specific source chain.
-     * @param _sourceChainSelector The chain selector of the source chain.
-     * @param _sender The address of the sender contract on the source chain.
-     * @return True if the sender is allowed, false otherwise.
-     */
-    function isSenderAllowed(uint64 _sourceChainSelector, address _sender) external view returns (bool) {
-        return allowedSenders[_sourceChainSelector][_sender];
-    }
 }
