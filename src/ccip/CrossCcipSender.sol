@@ -9,7 +9,7 @@ import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol"; // For ge
 
 import "../interfaces/ICrossChainSender.sol"; // Import the new interface
 
-contract CrossSourceMinter is ICrossChainSender, ConfirmedOwner { // Implement interface and use ConfirmedOwner
+contract CrossCcipSender is ICrossChainSender, ConfirmedOwner { // Implement interface and use ConfirmedOwner
 
     // Custom errors
     error NotEnoughBalance(uint256 currentBalance, uint256 calculatedFees);
@@ -39,6 +39,8 @@ contract CrossSourceMinter is ICrossChainSender, ConfirmedOwner { // Implement i
         bytes calldata _targetCallData,
         uint256 _gasLimit
     ) external override onlyOwner returns (bytes32 messageId) {
+        require(_targetContract != address(0), "Invalid targetContract address");
+        require(_receiver != address(0), "Invalid receiver address");
         bytes memory combinedData = abi.encodePacked(_targetContract, _targetCallData);
         Client.EVM2AnyMessage memory message = Client.EVM2AnyMessage({
             receiver: abi.encode(_receiver),
