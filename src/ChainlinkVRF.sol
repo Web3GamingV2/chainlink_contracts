@@ -5,54 +5,36 @@ pragma solidity ^0.8.19;
 import {VRFConsumerBaseV2Plus} from "@chainlink/contracts/src/v0.8/vrf/dev/VRFConsumerBaseV2Plus.sol";
 import {VRFV2PlusClient} from "@chainlink/contracts/src/v0.8/vrf/dev/libraries/VRFV2PlusClient.sol";
 
-/**
- * Request testnet LINK and ETH here: https://faucets.chain.link/
- * Find information on LINK Token Contracts and get the latest ETH and LINK faucets here: https://docs.chain.link/docs/link-token-contracts/
- */
+import "./interfaces/IChainlinkVRFCellee.sol";
+import "./interfaces/IChainlinkVRF.sol";
 
 /**
  * THIS IS AN EXAMPLE CONTRACT THAT USES HARDCODED VALUES FOR CLARITY.
  * THIS IS AN EXAMPLE CONTRACT THAT USES UN-AUDITED CODE.
  * DO NOT USE THIS CODE IN PRODUCTION.
  */
-contract SubscriptionConsumer is VRFConsumerBaseV2Plus {
+contract SubscriptionConsumer is VRFConsumerBaseV2Plus, IChainlinkVRF {
     event RequestSent(uint256 requestId, uint32 numWords);
     event RequestFulfilled(uint256 requestId, uint256[] randomWords);
+
+    error ReciverRandomWordsError(string err);
 
     struct RequestStatus {
         bool fulfilled; // whether the request has been successfully fulfilled
         bool exists; // whether a requestId exists
         uint256[] randomWords;
+        address callee;
     }
 
     mapping(uint256 => RequestStatus) public s_requests; /* requestId --> requestStatus */
 
-    // Your subscription ID.
     uint256 public s_subscriptionId;
 
     // Past request IDs.
     uint256[] public requestIds;
     uint256 public lastRequestId;
-
-    // The gas lane to use, which specifies the maximum gas price to bump to.
-    // For a list of available gas lanes on each network,
-    // see https://docs.chain.link/vrf/v2-5/supported-networks
     bytes32 public keyHash;
 
-    // Depends on the number of requested values that you want sent to the
-    // fulfillRandomWords() function. Storing each word costs about 20,000 gas,
-    // so 100,000 is a safe default for this example contract. Test and adjust
-    // this limit based on the network that you select, the size of the request,
-    // and the processing of the callback request in the fulfillRandomWords()
-    // function.
-    // uint32 public callbackGasLimit = 100000;
-
-    // The default is 3, but you can set this higher.
-    // uint16 public requestConfirmations = 3;
-
-    // For this example, retrieve 2 random values in one request.
-    // Cannot exceed VRFCoordinatorV2_5.MAX_NUM_WORDS.
-    // uint32 public numWords = 2;
 
     /**
      * HARDCODED FOR SEPOLIA
@@ -65,12 +47,13 @@ contract SubscriptionConsumer is VRFConsumerBaseV2Plus {
         keyHash = _keyHash;
     }
 
-    // Assumes the subscription is funded sufficiently.
-    // @param enableNativePayment: Set to `true` to enable payment in native tokens, or
-    // `false` to pay in LINK
     function requestRandomWords(
-        bool enableNativePayment, uint32 numWords, uint16 requestConfirmations, uint32 callbackGasLimit) external onlyOwner returns (uint256 requestId) {
-        // Will revert if subscription is not set and funded.
+        bool enableNativePayment, 
+        uint32 numWords,
+        uint16 requestConfirmations,
+        uint32 callbackGasLimit,
+        address callee
+        ) external onlyOwner returns (uint256 requestId) {
         requestId = s_vrfCoordinator.requestRandomWords(
             VRFV2PlusClient.RandomWordsRequest({
                 keyHash: keyHash,
@@ -81,7 +64,7 @@ contract SubscriptionConsumer is VRFConsumerBaseV2Plus {
                 extraArgs: VRFV2PlusClient._argsToBytes(VRFV2PlusClient.ExtraArgsV1({nativePayment: enableNativePayment}))
             })
         );
-        s_requests[requestId] = RequestStatus({randomWords: new uint256[](0), exists: true, fulfilled: false});
+        s_requests[requestId] = RequestStatus({randomWords: new uint256[](0), exists: true, fulfilled: false, callee: callee});
         requestIds.push(requestId);
         lastRequestId = requestId;
         emit RequestSent(requestId, numWords);
@@ -92,16 +75,33 @@ contract SubscriptionConsumer is VRFConsumerBaseV2Plus {
         require(s_requests[_requestId].exists, "request not found");
         s_requests[_requestId].fulfilled = true;
         s_requests[_requestId].randomWords = _randomWords;
+        address callee = s_requests[_requestId].callee;
+        if (callee != address(0)) {
+            try IChainlinkVRFCellee(callee).revicerRandom(_randomWords) returns (bool success) {
+               require(success, ReciverRandomWordsError("revicerRandom failed"));
+            } catch {
+               revert(
+                 string(
+                    abi.encodePacked(
+                        "Contract name SubscriptionConsumer: ",
+                        callee,
+                        "RevicerRandom failed: ",
+                        _requestId
+                    )
+                )
+               );
+            }
+        }
         emit RequestFulfilled(_requestId, _randomWords);
     }
 
     function getRequestStatus(uint256 _requestId)
         external
         view
-        returns (bool fulfilled, uint256[] memory randomWords)
+        returns (bool fulfilled, uint256[] memory randomWords, address callee)
     {
         require(s_requests[_requestId].exists, "request not found");
         RequestStatus memory request = s_requests[_requestId];
-        return (request.fulfilled, request.randomWords);
+        return (request.fulfilled, request.randomWords, request.callee);
     }
 }

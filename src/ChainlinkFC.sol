@@ -5,46 +5,35 @@ import {FunctionsClient} from "@chainlink/contracts/src/v0.8/functions/v1_0_0/Fu
 import {ConfirmedOwner} from "@chainlink/contracts/src/v0.8/shared/access/ConfirmedOwner.sol";
 import {FunctionsRequest} from "@chainlink/contracts/src/v0.8/functions/v1_0_0/libraries/FunctionsRequest.sol";
 
-// https://remix.ethereum.org/#url=https://docs.chain.link/samples/ChainlinkFunctions/GettingStartedFunctionsConsumer.sol&autoCompile=true&lang=en&optimize=false&runs=200&evmVersion=null&version=soljson-v0.8.19+commit.7dd6d404.js
-contract ChainlinkFC is FunctionsClient, ConfirmedOwner {
+import "./interfaces/IChainlinkFC.sol"; // Import the interface
+import "./interfaces/IChainlinkFCCallee.sol"; // Import the callee interface
+
+contract ChainlinkFC is FunctionsClient, ConfirmedOwner, IChainlinkFC {
     using FunctionsRequest for FunctionsRequest.Request;
 
-    // State variables to store the last request ID, response, and error
-    bytes32 public s_lastRequestId;
-    bytes public s_lastResponse;
-    bytes public s_lastError;
+    mapping(bytes32 => RequestStatus) public s_requests;
+    bytes32 public s_donId;
+    address public s_router;
 
     // Custom error type
     error UnexpectedRequestID(bytes32 requestId);
-
     // Event to log responses
     event Response(bytes32 indexed requestId, string character, bytes response, bytes err);
+    error RequestNotFound(bytes32 requestId);
+    error CallbackFailed(address callee, bytes32 requestId);
 
-    // Router address - Hardcoded for Sepolia
-    // Check to get the router address for your supported network https://docs.chain.link/chainlink-functions/supported-networks
-    address router = 0xb83E47C2bC239B3bf370bc41e1459A34b41238D0;
-
-    // JavaScript source code
-    // Fetch character name from the Star Wars API.
-    // Documentation: https://swapi.info/people
-    string source = "const characterId = args[0];" "const apiResponse = await Functions.makeHttpRequest({"
-        "url: `https://swapi.info/api/people/${characterId}/`" "});" "if (apiResponse.error) {"
-        "throw Error('Request failed');" "}" "const { data } = apiResponse;" "return Functions.encodeString(data.name);";
-
-    //Callback gas limit
-    uint32 gasLimit = 300000;
-
-    // donID - Hardcoded for Sepolia
-    // Check to get the donID for your supported network https://docs.chain.link/chainlink-functions/supported-networks
-    bytes32 donID = 0x66756e2d657468657265756d2d7365706f6c69612d3100000000000000000000;
-
-    // State variable to store the returned character information
-    string public character;
 
     /**
      * @notice Initializes the contract with the Chainlink router address and sets the contract owner
      */
-    constructor() FunctionsClient(router) ConfirmedOwner(msg.sender) {}
+    constructor(
+        address _router,
+        bytes32 _donId,
+        address _owner
+    ) FunctionsClient(_router) ConfirmedOwner(_owner) {
+        s_router = _router;
+        s_donId = _donId;
+    }
 
     /**
      * @notice Sends an HTTP request for character information
@@ -52,7 +41,13 @@ contract ChainlinkFC is FunctionsClient, ConfirmedOwner {
      * @param args The arguments to pass to the HTTP request
      * @return requestId The ID of the request
      */
-    function sendRequest(uint64 subscriptionId, string[] calldata args)
+    function sendRequest(
+        uint64 subscriptionId,
+        string[] calldata args, 
+        string calldata source, // Pass source code as argument
+        uint32 gasLimit,      // Pass gas limit as argument
+        address callee
+    )
         external
         onlyOwner
         returns (bytes32 requestId)
@@ -62,7 +57,17 @@ contract ChainlinkFC is FunctionsClient, ConfirmedOwner {
         if (args.length > 0) req.setArgs(args); // Set the arguments for the request
 
         // Send the request and store the request ID
-        s_lastRequestId = _sendRequest(req.encodeCBOR(), subscriptionId, gasLimit, donID);
+        bytes32 s_lastRequestId = _sendRequest(req.encodeCBOR(), subscriptionId, gasLimit, s_donId);
+
+        s_requests[requestId] = RequestStatus({
+            fulfilled: false,
+            exists: true,
+            response: "",
+            err: "",
+            callee: callee
+        });
+
+        emit RequestSent(requestId, callee); 
 
         return s_lastRequestId;
     }
@@ -74,15 +79,49 @@ contract ChainlinkFC is FunctionsClient, ConfirmedOwner {
      * @param err Any errors from the Functions request
      */
     function fulfillRequest(bytes32 requestId, bytes memory response, bytes memory err) internal override {
-        if (s_lastRequestId != requestId) {
+         RequestStatus storage request = s_requests[requestId];
+        if (!request.exists) {
             revert UnexpectedRequestID(requestId); // Check if request IDs match
         }
-        // Update the contract's state variables with the response and any errors
-        s_lastResponse = response;
-        character = string(response);
-        s_lastError = err;
+        request.fulfilled = true;
+        request.response = response;
+        request.err = err;
+        emit ResponseReceived(requestId, response, err);
 
-        // Emit an event to log the response
-        emit Response(requestId, character, s_lastResponse, s_lastError);
+         address callee = request.callee;
+        if (callee != address(0)) {
+            try IChainlinkFCCallee(callee).receiveFunctionResponse(requestId, response, err) returns (bool success) {
+                require(success, CallbackFailed(callee, requestId));
+            } catch {
+                revert(
+                 string(
+                    abi.encodePacked(
+                        "Contract name ChainlinkFC: ",
+                        callee,
+                        "ResponseReceived failed: ",
+                        requestId
+                    )
+                )
+               );
+            }
+        }
+    }
+
+    function getRequestStatus(bytes32 _requestId)
+        external
+        view
+        override
+        returns (
+            bool fulfilled,
+            bytes memory response,
+            bytes memory err,
+            address callee
+        )
+    {
+        RequestStatus storage request = s_requests[_requestId];
+        if (!request.exists) {
+            revert RequestNotFound(_requestId);
+        }
+        return (request.fulfilled, request.response, request.err, request.callee);
     }
 }
