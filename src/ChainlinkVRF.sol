@@ -79,17 +79,8 @@ contract SubscriptionConsumer is VRFConsumerBaseV2Plus, IChainlinkVRF {
         if (callee != address(0)) {
             try IChainlinkVRFCellee(callee).revicerRandom(_randomWords) returns (bool success) {
                require(success, ReciverRandomWordsError("revicerRandom failed"));
-            } catch {
-               revert(
-                 string(
-                    abi.encodePacked(
-                        "Contract name SubscriptionConsumer: ",
-                        callee,
-                        "RevicerRandom failed: ",
-                        _requestId
-                    )
-                )
-               );
+            } catch (bytes memory reason) {
+                revert(string(abi.encodePacked("RevicerRandom: ", string(reason))));
             }
         }
         emit RequestFulfilled(_requestId, _randomWords);

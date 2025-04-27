@@ -92,17 +92,8 @@ contract ChainlinkFC is FunctionsClient, ConfirmedOwner, IChainlinkFC {
         if (callee != address(0)) {
             try IChainlinkFCCallee(callee).receiveFunctionResponse(requestId, response, err) returns (bool success) {
                 require(success, CallbackFailed(callee, requestId));
-            } catch {
-                revert(
-                 string(
-                    abi.encodePacked(
-                        "Contract name ChainlinkFC: ",
-                        callee,
-                        "ResponseReceived failed: ",
-                        requestId
-                    )
-                )
-               );
+            } catch (bytes memory reason) {
+                revert(string(abi.encodePacked("ResponseReceived: ", string(reason))));
             }
         }
     }
