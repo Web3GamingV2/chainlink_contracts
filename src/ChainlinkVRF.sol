@@ -34,10 +34,10 @@ contract ChainlinkVRF is VRFConsumerBaseV2Plus, IChainlinkVRF {
     mapping(address => bool) public allowedCallers;
 
     uint256 public s_subscriptionId;
-
     uint256[] public requestIds;
     uint256 public lastRequestId;
     bytes32 public keyHash;
+    address public proxyRouter; // proxy router address 业务代码的 proxy 地址
 
     modifier onlyOwnerOrAllowedCaller(address caller) {
         if (!allowedCallers[caller]) {
@@ -45,10 +45,18 @@ contract ChainlinkVRF is VRFConsumerBaseV2Plus, IChainlinkVRF {
         }
         _;
     }
-    constructor(address _owner, address _vrfCoordinator, uint256 _subscriptionId, bytes32 _keyHash) VRFConsumerBaseV2Plus(_vrfCoordinator) {
+    constructor(
+        address _owner,
+        address _proxyRouter,
+        address _vrfCoordinator,
+        uint256 _subscriptionId,
+        bytes32 _keyHash
+        ) VRFConsumerBaseV2Plus(_vrfCoordinator) {
         s_subscriptionId = _subscriptionId;
         keyHash = _keyHash;
+        proxyRouter = _proxyRouter;
         allowedCallers[_owner] = true;
+        allowedCallers[_proxyRouter] = true;
         emit CallerAdded(_owner);
     }
 
@@ -85,21 +93,16 @@ contract ChainlinkVRF is VRFConsumerBaseV2Plus, IChainlinkVRF {
         if (callee == address(0)) {
             revert ZeroAddress();
         }
-        // string memory err = "RevicerRandom failed: ";
+        string memory err = "RevicerRandom failed";
         bytes memory data = abi.encodeWithSignature(
-            "revicerRandomWords(uint256[])",
+            "receiveRandomWords(uint256[])",
             _randomWords
         );
         (bool success,) = address(callee).call(data);
-        // if (!success) {
-        //     if (result.length > 0) {
-        //         err = string(abi.encodePacked(err, string(result)));
-        //     } else {
-        //         err = string(abi.encodePacked(err, "No data returned"));
-        //     }
-        //     emit ReciverRandomWordsErrorCall(callee, _requestId, err);
-        //     revert ReciverRandomWordsError(err);
-        // }
+        if (!success) {
+            emit ReciverRandomWordsErrorCall(callee, _requestId, err);
+            revert ReciverRandomWordsError(err);
+        }
         emit RequestFulfilled(_requestId, _randomWords, data, success);
     }
 

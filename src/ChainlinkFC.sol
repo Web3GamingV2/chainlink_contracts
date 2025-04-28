@@ -15,9 +15,7 @@ contract ChainlinkFC is FunctionsClient, ConfirmedOwner, IChainlinkFC {
     bytes32 public s_donId;
     address public s_router;
 
-    // Custom error type
     error UnexpectedRequestID(bytes32 requestId);
-    // Event to log responses
     event Response(bytes32 indexed requestId, string character, bytes response, bytes err);
     error RequestNotFound(bytes32 requestId);
     error CallbackFailed(address callee, bytes32 requestId);
@@ -56,7 +54,6 @@ contract ChainlinkFC is FunctionsClient, ConfirmedOwner, IChainlinkFC {
         req.initializeRequestForInlineJavaScript(source); // Initialize the request with JS code
         if (args.length > 0) req.setArgs(args); // Set the arguments for the request
 
-        // Send the request and store the request ID
         bytes32 s_lastRequestId = _sendRequest(req.encodeCBOR(), subscriptionId, gasLimit, s_donId);
 
         s_requests[requestId] = RequestStatus({
@@ -87,8 +84,7 @@ contract ChainlinkFC is FunctionsClient, ConfirmedOwner, IChainlinkFC {
         request.response = response;
         request.err = err;
         emit ResponseReceived(requestId, response, err);
-
-         address callee = request.callee;
+        address callee = request.callee;
         if (callee != address(0)) {
             try IChainlinkFCCallee(callee).receiveFunctionResponse(requestId, response, err) returns (bool success) {
                 if (!success) {

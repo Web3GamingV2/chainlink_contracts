@@ -9,7 +9,7 @@ contract ChainlinkVRFReciver is IChainlinkVRFCellee {
     event RandomWordsReceived(address indexed caller, uint256[] randomWords);
 
     uint256[] public randomWords;
-    function revicerRandomWords(uint256[] memory _randomWords) external override {
+    function receiveRandomWords(uint256[] memory _randomWords) external override {
         randomWords = _randomWords;
         emit RandomWordsReceived(msg.sender, _randomWords); // Emit an event to indicate the rando
     }
