@@ -22,8 +22,14 @@ import "./interfaces/IVRFConsumerBaseV2Plus.sol";
 contract ChainlinkVRF is IVRFConsumerBaseV2Plus, IChainlinkVRF, Initializable, UUPSUpgradeable, OwnableUpgradeable {
     event RequestSent(uint256 requestId, uint32 numWords);
     event RequestFulfilled(uint256 requestId, uint256[] randomWords);
+    event CallerAdded(address indexed caller);
+    event CallerRemoved(address indexed caller);
+    event RequestStatusRemoved(uint256 indexed requestId);
+
     error ZeroAddress();
     error ReciverRandomWordsError(string err);
+    error CallerNotAllowed(address caller);
+    error RequestNotFound(uint256 requestId);
 
     struct RequestStatus {
         bool fulfilled; // whether the request has been successfully fulfilled
@@ -33,14 +39,21 @@ contract ChainlinkVRF is IVRFConsumerBaseV2Plus, IChainlinkVRF, Initializable, U
     }
 
     mapping(uint256 => RequestStatus) public s_requests; /* requestId --> requestStatus */
+    mapping(address => bool) public allowedCallers;
 
     uint256 public s_subscriptionId;
     IVRFCoordinatorV2Plus public s_vrfCoordinator;
 
-    // Past request IDs.
     uint256[] public requestIds;
     uint256 public lastRequestId;
     bytes32 public keyHash;
+
+    modifier onlyOwnerOrAllowedCaller() {
+        if (!allowedCallers[msg.sender]) {
+            revert CallerNotAllowed(msg.sender);
+        }
+        _;
+    }
 
 
     /**
@@ -62,9 +75,11 @@ contract ChainlinkVRF is IVRFConsumerBaseV2Plus, IChainlinkVRF, Initializable, U
     function initialize(address _owner, address _vrfCoordinator, uint256 _subscriptionId, bytes32 _keyHash) public initializer {
         __Ownable_init(_owner);
         __UUPSUpgradeable_init();
+        _initializeVRF(_vrfCoordinator);
         s_subscriptionId = _subscriptionId;
         keyHash = _keyHash;
-        _initializeVRF(_vrfCoordinator);
+        allowedCallers[_owner] = true;
+        emit CallerAdded(_owner);
     }
 
     function _initializeVRF(address _vrfCoordinator) internal {
@@ -80,7 +95,7 @@ contract ChainlinkVRF is IVRFConsumerBaseV2Plus, IChainlinkVRF, Initializable, U
         uint16 requestConfirmations,
         uint32 callbackGasLimit,
         address callee
-        ) external onlyOwner returns (uint256 requestId) {
+        ) external onlyOwnerOrAllowedCaller returns (uint256 requestId) {
         requestId = s_vrfCoordinator.requestRandomWords(
             VRFV2PlusClient.RandomWordsRequest({
                 keyHash: keyHash,
@@ -123,6 +138,43 @@ contract ChainlinkVRF is IVRFConsumerBaseV2Plus, IChainlinkVRF, Initializable, U
         require(s_requests[_requestId].exists, "request not found");
         RequestStatus memory request = s_requests[_requestId];
         return (request.fulfilled, request.randomWords, request.callee);
+    }
+
+    /**
+     * @notice Allows the owner to remove the status of a specific VRF request.
+     * @param _requestId The ID of the request status to remove.
+     * @dev This only removes the entry from the s_requests mapping.
+     */
+    function removeRequestStatus(uint256 _requestId) external onlyOwner {
+        if (!s_requests[_requestId].exists) {
+            revert RequestNotFound(_requestId);
+        }
+        delete s_requests[_requestId];
+        emit RequestStatusRemoved(_requestId);
+    }
+
+        /**
+     * @notice Allows the owner to add an address to the list of allowed callers.
+     * @param _caller The address to allow.
+     */
+    function addCaller(address _caller) external onlyOwner {
+        require(_caller != address(0), "Caller cannot be zero address");
+        if (!allowedCallers[_caller]) {
+            allowedCallers[_caller] = true;
+            emit CallerAdded(_caller);
+        }
+    }
+
+    /**
+     * @notice Allows the owner to remove an address from the list of allowed callers.
+     * @param _caller The address to disallow.
+     */
+    function removeCaller(address _caller) external onlyOwner {
+        require(_caller != address(0), "Caller cannot be zero address");
+        if (allowedCallers[_caller]) {
+            allowedCallers[_caller] = false;
+            emit CallerRemoved(_caller);
+        }
     }
 
      function _authorizeUpgrade(address newImplementation)
