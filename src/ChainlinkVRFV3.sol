@@ -7,6 +7,6 @@ import { ChainlinkVRF } from "./ChainlinkVRF.sol";
 /// @custom:oz-upgrades-from ChainlinkVRF
 contract ChainlinkVRFV3 is ChainlinkVRF {
     function version() external virtual pure returns (uint256) {
-        return 3;
+        return 5;
     }
 }

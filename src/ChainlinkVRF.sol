@@ -20,9 +20,9 @@ import "./interfaces/IVRFConsumerBaseV2Plus.sol";
  * DO NOT USE THIS CODE IN PRODUCTION.
  */
 contract ChainlinkVRF is IVRFConsumerBaseV2Plus, IChainlinkVRF, Initializable, UUPSUpgradeable, OwnableUpgradeable {
-    event RequestSent(address indexed callee, uint256 requestId, uint32 numWords);
+    event RequestSent(uint256 requestId, uint32 numWords);
     event RequestFulfilled(uint256 requestId, uint256[] randomWords);
-    event RandomWordsFulfilled(address indexed callee, uint256 indexed requestId, uint256[] randomWords);
+    // event RandomWordsFulfilledV1(address indexed callee, uint256 indexed requestId, uint256[] randomWords);
     event CallerAdded(address indexed caller);
     event CallerRemoved(address indexed caller);
     event RequestStatusRemoved(uint256 indexed requestId);
@@ -85,7 +85,7 @@ contract ChainlinkVRF is IVRFConsumerBaseV2Plus, IChainlinkVRF, Initializable, U
         uint16 requestConfirmations,
         uint32 callbackGasLimit,
         address callee
-        ) external onlyOwnerOrAllowedCaller(callee) returns (uint256 requestId) {
+        ) external onlyOwner() returns (uint256 requestId) {
         requestId = s_vrfCoordinator.requestRandomWords(
             VRFV2PlusClient.RandomWordsRequest({
                 keyHash: keyHash,
@@ -99,7 +99,7 @@ contract ChainlinkVRF is IVRFConsumerBaseV2Plus, IChainlinkVRF, Initializable, U
         s_requests[requestId] = RequestStatus({randomWords: new uint256[](0), exists: true, fulfilled: false, callee: callee});
         requestIds.push(requestId);
         lastRequestId = requestId;
-        emit RequestSent(callee, requestId, numWords);
+        emit RequestSent(requestId, numWords);
         return requestId;
     }
 
@@ -107,25 +107,25 @@ contract ChainlinkVRF is IVRFConsumerBaseV2Plus, IChainlinkVRF, Initializable, U
         require(s_requests[_requestId].exists, "request not found");
         s_requests[_requestId].fulfilled = true;
         s_requests[_requestId].randomWords = _randomWords;
-        address callee = s_requests[_requestId].callee;
-        emit RandomWordsFulfilled(callee, _requestId, _randomWords);
-        if (callee != address(0)) {
-            string memory err = "RevicerRandom failed: ";
-            bytes memory data = abi.encodeWithSelector(
-                IChainlinkVRFCellee.revicerRandomWords.selector,
-                _randomWords
-            );
-            (bool success, bytes memory result) = callee.call(data);
-            if (!success) {
-                if (result.length > 0) {
-                    err = string(abi.encodePacked(err, string(result)));
-                } else {
-                    err = string(abi.encodePacked(err, "No data returned"));
-                }
-                emit ReciverRandomWordsErrorCall(callee, _requestId, err);
-                revert ReciverRandomWordsError(err);
-            }
-        }
+        // address callee = s_requests[_requestId].callee;
+        // emit RandomWordsFulfilledV1(callee, _requestId, _randomWords);
+        // if (callee != address(0)) {
+        //     string memory err = "RevicerRandom failed: ";
+        //     bytes memory data = abi.encodeWithSelector(
+        //         IChainlinkVRFCellee.revicerRandomWords.selector,
+        //         _randomWords
+        //     );
+        //     (bool success, bytes memory result) = callee.call(data);
+        //     if (!success) {
+        //         if (result.length > 0) {
+        //             err = string(abi.encodePacked(err, string(result)));
+        //         } else {
+        //             err = string(abi.encodePacked(err, "No data returned"));
+        //         }
+        //         emit ReciverRandomWordsErrorCall(callee, _requestId, err);
+        //         revert ReciverRandomWordsError(err);
+        //     }
+        // }
         emit RequestFulfilled(_requestId, _randomWords);
     }
 
