@@ -11,13 +11,14 @@ import "./interfaces/IChainlinkVRF.sol";
 
 contract ChainlinkVRF is VRFConsumerBaseV2Plus, IChainlinkVRF {
     event RequestSent(uint256 requestId, uint32 numWords);
-    event RequestFulfilled(uint256 requestId, uint256[] randomWords);
+    event RequestFulfilled(uint256 requestId, uint256[] randomWords, bytes data, bool success);
     event CallerAdded(address indexed caller);
     event CallerRemoved(address indexed caller);
+    event RandomWordsFulfilledCallee(address indexed callee, uint256 indexed requestId, uint256[] randomWords);
     event RequestStatusRemoved(uint256 indexed requestId);
     event ReciverRandomWordsErrorCall(address indexed callee, uint256 indexed requestId, string err);
 
-    error ZeroAddress();
+    // error ZeroAddress();
     error ReciverRandomWordsError(string err);
     error CallerNotAllowed(address caller);
     error RequestNotFound(uint256 requestId);
@@ -79,26 +80,27 @@ contract ChainlinkVRF is VRFConsumerBaseV2Plus, IChainlinkVRF {
         require(s_requests[_requestId].exists, "request not found");
         s_requests[_requestId].fulfilled = true;
         s_requests[_requestId].randomWords = _randomWords;
-        // address callee = s_requests[_requestId].callee;
-        // emit RandomWordsFulfilledV1(callee, _requestId, _randomWords);
-        // if (callee != address(0)) {
-        //     string memory err = "RevicerRandom failed: ";
-        //     bytes memory data = abi.encodeWithSelector(
-        //         IChainlinkVRFCellee.revicerRandomWords.selector,
-        //         _randomWords
-        //     );
-        //     (bool success, bytes memory result) = callee.call(data);
-        //     if (!success) {
-        //         if (result.length > 0) {
-        //             err = string(abi.encodePacked(err, string(result)));
-        //         } else {
-        //             err = string(abi.encodePacked(err, "No data returned"));
-        //         }
-        //         emit ReciverRandomWordsErrorCall(callee, _requestId, err);
-        //         revert ReciverRandomWordsError(err);
+        address callee = s_requests[_requestId].callee;
+        emit RandomWordsFulfilledCallee(callee, _requestId, _randomWords);
+        if (callee == address(0)) {
+            revert ZeroAddress();
+        }
+        // string memory err = "RevicerRandom failed: ";
+        bytes memory data = abi.encodeWithSignature(
+            "revicerRandomWords(uint256[])",
+            _randomWords
+        );
+        (bool success,) = address(callee).call(data);
+        // if (!success) {
+        //     if (result.length > 0) {
+        //         err = string(abi.encodePacked(err, string(result)));
+        //     } else {
+        //         err = string(abi.encodePacked(err, "No data returned"));
         //     }
+        //     emit ReciverRandomWordsErrorCall(callee, _requestId, err);
+        //     revert ReciverRandomWordsError(err);
         // }
-        emit RequestFulfilled(_requestId, _randomWords);
+        emit RequestFulfilled(_requestId, _randomWords, data, success);
     }
 
     function getRequestStatus(uint256 _requestId)
