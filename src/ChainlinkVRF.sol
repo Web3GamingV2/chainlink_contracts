@@ -21,8 +21,8 @@ import "./interfaces/IVRFConsumerBaseV2Plus.sol";
  */
 contract ChainlinkVRF is IVRFConsumerBaseV2Plus, IChainlinkVRF, Initializable, UUPSUpgradeable, OwnableUpgradeable {
     event RequestSent(uint256 requestId, uint32 numWords);
-    event RequestFulfilled(uint256 requestId, uint256[] randomWords);
-    // event RandomWordsFulfilledV1(address indexed callee, uint256 indexed requestId, uint256[] randomWords);
+    event RequestFulfilled(uint256 requestId, uint256[] randomWords, bytes data, bool success);
+    event RandomWordsFulfilledCallee(address indexed callee, uint256 indexed requestId, uint256[] randomWords);
     event CallerAdded(address indexed caller);
     event CallerRemoved(address indexed caller);
     event RequestStatusRemoved(uint256 indexed requestId);
@@ -85,7 +85,7 @@ contract ChainlinkVRF is IVRFConsumerBaseV2Plus, IChainlinkVRF, Initializable, U
         uint16 requestConfirmations,
         uint32 callbackGasLimit,
         address callee
-        ) external onlyOwner() returns (uint256 requestId) {
+        ) external returns (uint256 requestId) {
         requestId = s_vrfCoordinator.requestRandomWords(
             VRFV2PlusClient.RandomWordsRequest({
                 keyHash: keyHash,
@@ -107,6 +107,17 @@ contract ChainlinkVRF is IVRFConsumerBaseV2Plus, IChainlinkVRF, Initializable, U
         require(s_requests[_requestId].exists, "request not found");
         s_requests[_requestId].fulfilled = true;
         s_requests[_requestId].randomWords = _randomWords;
+        address callee = s_requests[_requestId].callee;
+        emit RandomWordsFulfilledCallee(callee, _requestId, _randomWords);
+        if (callee == address(0)) {
+            revert ZeroAddress();
+        }
+        // string memory err = "RevicerRandom failed: ";
+        bytes memory data = abi.encodeWithSignature(
+            "revicerRandomWords(uint256[])",
+            _randomWords
+        );
+        (bool success,) = address(callee).call(data);
         // address callee = s_requests[_requestId].callee;
         // emit RandomWordsFulfilledV1(callee, _requestId, _randomWords);
         // if (callee != address(0)) {
@@ -126,7 +137,7 @@ contract ChainlinkVRF is IVRFConsumerBaseV2Plus, IChainlinkVRF, Initializable, U
         //         revert ReciverRandomWordsError(err);
         //     }
         // }
-        emit RequestFulfilled(_requestId, _randomWords);
+        emit RequestFulfilled(_requestId, _randomWords, data, success);
     }
 
     function getRequestStatus(uint256 _requestId)

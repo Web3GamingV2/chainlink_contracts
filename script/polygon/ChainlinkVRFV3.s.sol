@@ -11,7 +11,7 @@ import {ChainlinkVRFV3} from "../../src/ChainlinkVRFV3.sol";
 == Logs ==
   Deploying contracts with the account: 0x355eb1c3D6dF0642b3abe2785e821C574837C79f
   ChainlinkVRF Proxy deployed to: 0x5b0B1Cf4e1Fd328945b5473E54e3Bd7afEAFd5C2
-  ChainlinkVRF Implementation deployed to: 0x3baC9a8D54517C754D16cf846F240173EEB4fFfE
+  ChainlinkVRF Implementation deployed to: 0x85BCb6a766d8Eb98B6e3518000Ac4787D81d532C
   ChainlinkVRF Owner set to: 0x355eb1c3D6dF0642b3abe2785e821C574837C79f
 
   cast call --rpc-url https://polygon-amoy.g.alchemy.com/v2/vkZ5WPCV0qB9Gye9sajMsn9YhdSl7Shy 0x5b0B1Cf4e1Fd328945b5473E54e3Bd7afEAFd5C2 "version()(uint256)" 
