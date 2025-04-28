@@ -33,7 +33,7 @@ contract SubscriptionConsumerScript is Script {
         // 部署合约
         // ChainlinkVRF consumer = new ChainlinkVRF(initialOwner, vrfCoordinator, subId, keyHash);
          bytes memory initData = abi.encodeWithSelector(
-            consumer.initialize.selector,
+            ChainlinkVRF.initialize.selector,
             initialOwner,
             vrfCoordinator,
             subId,
