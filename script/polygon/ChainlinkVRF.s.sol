@@ -2,15 +2,9 @@
 pragma solidity ^0.8.13;
 
 import {Script, console} from "forge-std/Script.sol";
-import {Upgrades} from "openzeppelin-foundry-upgrades/Upgrades.sol";
 import {ChainlinkVRF} from "../../src/ChainlinkVRF.sol";
 
 // forge script script/polygon/ChainlinkVRF.s.sol:SubscriptionConsumerScript --rpc-url https://polygon-amoy.g.alchemy.com/v2/vkZ5WPCV0qB9Gye9sajMsn9YhdSl7Shy --private-key $WEB3GAMING_PRIVATE_KEY --broadcast --verify --etherscan-api-key 3B5VHH6EPJ17CQGFIHDT3BU5V4UNHIEVQB
-// == Logs ==
-//   Deploying contracts with the account: 0x355eb1c3D6dF0642b3abe2785e821C574837C79f
-//   ChainlinkVRF Proxy deployed to: 0x5b0B1Cf4e1Fd328945b5473E54e3Bd7afEAFd5C2
-//   ChainlinkVRF Implementation deployed to: 0xe0777311F4A9ED96FD816ec0D4Aba6ED77054533
-//   ChainlinkVRF Owner set to: 0x355eb1c3D6dF0642b3abe2785e821C574837C79f
 // cast send --rpc-url https://polygon-amoy.g.alchemy.com/v2/vkZ5WPCV0qB9Gye9sajMsn9YhdSl7Shy --private-key $WEB3GAMING_PRIVATE_KEY 0x5b0B1Cf4e1Fd328945b5473E54e3Bd7afEAFd5C2 "requestRandomWords(bool,uint32,uint16,uint32,address)(uint256)" false 2 3 100000 0xBd32Bec48cE1d57e2980e1c6Cf2FFF085563171c
 // cast call --rpc-url https://polygon-amoy.g.alchemy.com/v2/vkZ5WPCV0qB9Gye9sajMsn9YhdSl7Shy 0x5b0B1Cf4e1Fd328945b5473E54e3Bd7afEAFd5C2 "getRequestStatus(uint256)(bool,uint256[],address)" 74404205751367171453680425166754391776173647567223678025261793795674402599589
 // cast call --rpc-url https://polygon-amoy.g.alchemy.com/v2/vkZ5WPCV0qB9Gye9sajMsn9YhdSl7Shy 0x5b0B1Cf4e1Fd328945b5473E54e3Bd7afEAFd5C2 "allowedCallers(address)(bool)" 0x355eb1c3D6dF0642b3abe2785e821C574837C79f
@@ -29,24 +23,9 @@ contract SubscriptionConsumerScript is Script {
         address vrfCoordinator = 0x343300b5d84D444B2ADc9116FEF1bED02BE49Cf2;
         address initialOwner = deployerAddress;
         vm.startBroadcast(deployerPrivateKey);
-        // 部署合约
-        // ChainlinkVRF consumer = new ChainlinkVRF(initialOwner, vrfCoordinator, subId, keyHash);
-         bytes memory initData = abi.encodeWithSelector(
-            ChainlinkVRF.initialize.selector,
-            initialOwner,
-            vrfCoordinator,
-            subId,
-            keyHash
-        );
-
-         address proxy = Upgrades.deployUUPSProxy(
-            "ChainlinkVRF.sol:ChainlinkVRF", // 合约文件名:合约名
-            initData
-        );
+        ChainlinkVRF consumer = new ChainlinkVRF(initialOwner, vrfCoordinator, subId, keyHash);
        // --- 输出结果 ---
-        console.log("ChainlinkVRF Proxy deployed to:", proxy);
-        address implementation = Upgrades.getImplementationAddress(proxy);
-        console.log("ChainlinkVRF Implementation deployed to:", implementation);
+        console.log("ChainlinkVRF Implementation deployed to:", address(consumer));
         console.log("ChainlinkVRF Owner set to:", initialOwner);
         vm.stopBroadcast();
     }
