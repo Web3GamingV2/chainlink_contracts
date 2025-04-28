@@ -3,5 +3,5 @@
 pragma solidity ^0.8.19;
 
 interface IChainlinkVRFCellee {
-    function revicerRandomWords(uint256[] memory randomWords) external returns (bool);
+    function revicerRandomWords(uint256[] memory randomWords) external;
 }

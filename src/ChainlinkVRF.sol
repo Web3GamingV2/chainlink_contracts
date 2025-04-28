@@ -20,11 +20,13 @@ import "./interfaces/IVRFConsumerBaseV2Plus.sol";
  * DO NOT USE THIS CODE IN PRODUCTION.
  */
 contract ChainlinkVRF is IVRFConsumerBaseV2Plus, IChainlinkVRF, Initializable, UUPSUpgradeable, OwnableUpgradeable {
-    event RequestSent(uint256 requestId, uint32 numWords);
+    event RequestSent(address indexed callee, uint256 requestId, uint32 numWords);
     event RequestFulfilled(uint256 requestId, uint256[] randomWords);
+    event RandomWordsFulfilled(address indexed callee, uint256 indexed requestId, uint256[] randomWords);
     event CallerAdded(address indexed caller);
     event CallerRemoved(address indexed caller);
     event RequestStatusRemoved(uint256 indexed requestId);
+    event ReciverRandomWordsErrorCall(address indexed callee, uint256 indexed requestId, string err);
 
     error ZeroAddress();
     error ReciverRandomWordsError(string err);
@@ -48,24 +50,12 @@ contract ChainlinkVRF is IVRFConsumerBaseV2Plus, IChainlinkVRF, Initializable, U
     uint256 public lastRequestId;
     bytes32 public keyHash;
 
-    modifier onlyOwnerOrAllowedCaller() {
-        if (!allowedCallers[msg.sender]) {
-            revert CallerNotAllowed(msg.sender);
+    modifier onlyOwnerOrAllowedCaller(address caller) {
+        if (!allowedCallers[caller]) {
+            revert CallerNotAllowed(caller);
         }
         _;
     }
-
-
-    /**
-     * HARDCODED FOR SEPOLIA
-     * COORDINATOR: 0x9DdfaCa8183c41ad55329BdeeD9F6A8d53168B1B
-     * HARDCODED FOR AMOY
-     * COORDINATOR: 0x343300b5d84D444B2ADc9116FEF1bED02BE49Cf2
-     */
-    // constructor(address _vrfCoordinator, uint256 _subscriptionId, bytes32 _keyHash) VRFConsumerBaseV2Plus(_vrfCoordinator) {
-    //     s_subscriptionId = _subscriptionId;
-    //     keyHash = _keyHash;
-    // }
 
     /// @custom:oz-upgrades-unsafe-allow constructor
     constructor() {
@@ -95,7 +85,7 @@ contract ChainlinkVRF is IVRFConsumerBaseV2Plus, IChainlinkVRF, Initializable, U
         uint16 requestConfirmations,
         uint32 callbackGasLimit,
         address callee
-        ) external onlyOwnerOrAllowedCaller returns (uint256 requestId) {
+        ) external onlyOwnerOrAllowedCaller(callee) returns (uint256 requestId) {
         requestId = s_vrfCoordinator.requestRandomWords(
             VRFV2PlusClient.RandomWordsRequest({
                 keyHash: keyHash,
@@ -109,7 +99,7 @@ contract ChainlinkVRF is IVRFConsumerBaseV2Plus, IChainlinkVRF, Initializable, U
         s_requests[requestId] = RequestStatus({randomWords: new uint256[](0), exists: true, fulfilled: false, callee: callee});
         requestIds.push(requestId);
         lastRequestId = requestId;
-        emit RequestSent(requestId, numWords);
+        emit RequestSent(callee, requestId, numWords);
         return requestId;
     }
 
@@ -118,13 +108,22 @@ contract ChainlinkVRF is IVRFConsumerBaseV2Plus, IChainlinkVRF, Initializable, U
         s_requests[_requestId].fulfilled = true;
         s_requests[_requestId].randomWords = _randomWords;
         address callee = s_requests[_requestId].callee;
+        emit RandomWordsFulfilled(callee, _requestId, _randomWords);
         if (callee != address(0)) {
-            try IChainlinkVRFCellee(callee).revicerRandomWords(_randomWords) returns (bool success) {
-               if (!success) {
-                    revert ReciverRandomWordsError("revicerRandom failed");
+            string memory err = "RevicerRandom failed: ";
+            bytes memory data = abi.encodeWithSelector(
+                IChainlinkVRFCellee.revicerRandomWords.selector,
+                _randomWords
+            );
+            (bool success, bytes memory result) = callee.call(data);
+            if (!success) {
+                if (result.length > 0) {
+                    err = string(abi.encodePacked(err, string(result)));
+                } else {
+                    err = string(abi.encodePacked(err, "No data returned"));
                 }
-            } catch (bytes memory reason) {
-                revert(string(abi.encodePacked("RevicerRandom: ", string(reason))));
+                emit ReciverRandomWordsErrorCall(callee, _requestId, err);
+                revert ReciverRandomWordsError(err);
             }
         }
         emit RequestFulfilled(_requestId, _randomWords);

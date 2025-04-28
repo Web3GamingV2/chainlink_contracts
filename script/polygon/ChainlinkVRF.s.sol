@@ -5,15 +5,16 @@ import {Script, console} from "forge-std/Script.sol";
 import {Upgrades} from "openzeppelin-foundry-upgrades/Upgrades.sol";
 import {ChainlinkVRF} from "../../src/ChainlinkVRF.sol";
 
-// forge script script/ChainlinkVRF.s.sol:SubscriptionConsumerScript --rpc-url https://polygon-amoy.g.alchemy.com/v2/vkZ5WPCV0qB9Gye9sajMsn9YhdSl7Shy --private-key $WEB3GAMING_PRIVATE_KEY --broadcast --verify --etherscan-api-key 3B5VHH6EPJ17CQGFIHDT3BU5V4UNHIEVQB
+// forge script script/polygon/ChainlinkVRF.s.sol:SubscriptionConsumerScript --rpc-url https://polygon-amoy.g.alchemy.com/v2/vkZ5WPCV0qB9Gye9sajMsn9YhdSl7Shy --private-key $WEB3GAMING_PRIVATE_KEY --broadcast --verify --etherscan-api-key 3B5VHH6EPJ17CQGFIHDT3BU5V4UNHIEVQB
 // == Logs ==
 //   Deploying contracts with the account: 0x355eb1c3D6dF0642b3abe2785e821C574837C79f
-//   GettingStartedVRFConsumer address: 0x1ab158924321143028a35EfF3F229B48a057C726
-//   Contract owner: 0x355eb1c3D6dF0642b3abe2785e821C574837C79f
-//   Is deployer owner? true
-// cast send --rpc-url https://polygon-amoy.g.alchemy.com/v2/vkZ5WPCV0qB9Gye9sajMsn9YhdSl7Shy --private-key $WEB3GAMING_PRIVATE_KEY 0x1ab158924321143028a35EfF3F229B48a057C726 "requestRandomWords(bool)(uint256)" false
-// cast call --rpc-url https://polygon-amoy.g.alchemy.com/v2/vkZ5WPCV0qB9Gye9sajMsn9YhdSl7Shy 0x1ab158924321143028a35EfF3F229B48a057C726 "lastRequestId()" 
-// cast call --rpc-url https://polygon-amoy.g.alchemy.com/v2/vkZ5WPCV0qB9Gye9sajMsn9YhdSl7Shy 0x1ab158924321143028a35EfF3F229B48a057C726 "getRequestStatus(uint256)(bool,uint256[])" 0xa03171da6dd4dd3c67264950fc47df28011b259f3d6bc5b8e96ed7debac8f333
+//   ChainlinkVRF Proxy deployed to: 0x5b0B1Cf4e1Fd328945b5473E54e3Bd7afEAFd5C2
+//   ChainlinkVRF Implementation deployed to: 0xe0777311F4A9ED96FD816ec0D4Aba6ED77054533
+//   ChainlinkVRF Owner set to: 0x355eb1c3D6dF0642b3abe2785e821C574837C79f
+// cast send --rpc-url https://polygon-amoy.g.alchemy.com/v2/vkZ5WPCV0qB9Gye9sajMsn9YhdSl7Shy --private-key $WEB3GAMING_PRIVATE_KEY 0x5b0B1Cf4e1Fd328945b5473E54e3Bd7afEAFd5C2 "requestRandomWords(bool,uint32,uint16,uint32,address)(uint256)" false 1 3 100000 0xBd32Bec48cE1d57e2980e1c6Cf2FFF085563171c
+// cast call --rpc-url https://polygon-amoy.g.alchemy.com/v2/vkZ5WPCV0qB9Gye9sajMsn9YhdSl7Shy 0x5b0B1Cf4e1Fd328945b5473E54e3Bd7afEAFd5C2 "getRequestStatus(uint256)(bool,uint256[],address)" 74404205751367171453680425166754391776173647567223678025261793795674402599589
+// cast call --rpc-url https://polygon-amoy.g.alchemy.com/v2/vkZ5WPCV0qB9Gye9sajMsn9YhdSl7Shy 0x5b0B1Cf4e1Fd328945b5473E54e3Bd7afEAFd5C2 "allowedCallers(address)(bool)" 0x355eb1c3D6dF0642b3abe2785e821C574837C79f
+// cast send --rpc-url https://polygon-amoy.g.alchemy.com/v2/vkZ5WPCV0qB9Gye9sajMsn9YhdSl7Shy --private-key $WEB3GAMING_PRIVATE_KEY 0x5b0B1Cf4e1Fd328945b5473E54e3Bd7afEAFd5C2 "addCaller(address)" 0xBd32Bec48cE1d57e2980e1c6Cf2FFF085563171c
 
 contract SubscriptionConsumerScript is Script {
     function run() external {
