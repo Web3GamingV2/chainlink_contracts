@@ -5,7 +5,6 @@ import {LinkTokenInterface} from "@chainlink/contracts/src/v0.8/shared/interface
 import {IRouterClient} from "@chainlink/contracts/src/v0.8/ccip/interfaces/IRouterClient.sol";
 import {Client} from "@chainlink/contracts/src/v0.8/ccip/libraries/Client.sol";
 import {ConfirmedOwner} from "@chainlink/contracts/src/v0.8/shared/access/ConfirmedOwner.sol"; // Import ConfirmedOwner
-import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol"; // For generic fee token withdrawal
 
 import "../interfaces/ICrossChainSender.sol"; // Import the new interface
 
@@ -77,11 +76,6 @@ contract CrossCcipSender is ICrossChainSender, ConfirmedOwner { // Implement int
     }
 
     function withdrawToken(address tokenAddress, address beneficiary) public onlyOwner {
-        require(tokenAddress != address(linkToken), "Use withdrawLink for LINK");
-        IERC20 token = IERC20(tokenAddress);
-        uint256 amount = token.balanceOf(address(this));
-        if (amount == 0) revert NothingToWithdraw();
-        token.transfer(beneficiary, amount);
     }
 
     // Modifier onlyOwner is inherited from ConfirmedOwner
