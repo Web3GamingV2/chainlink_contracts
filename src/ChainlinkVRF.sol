@@ -26,9 +26,7 @@ contract ChainlinkVRF is VRFConsumerBaseV2Plus, IChainlinkVRF {
     mapping(address => bool) public allowedCallers;
 
     uint256 public s_subscriptionId;
-    uint256[] public requestIds;
-    uint256 public lastRequestId;
-    bytes32 public keyHash;
+    bytes32 public s_keyHash;
     address public proxyRouter; // proxy router address 业务代码的 proxy 地址
 
     modifier onlyOwnerOrAllowedCaller(address caller) {
@@ -46,11 +44,11 @@ contract ChainlinkVRF is VRFConsumerBaseV2Plus, IChainlinkVRF {
         bytes32 _keyHash
         ) VRFConsumerBaseV2Plus(_vrfCoordinator) {
         s_subscriptionId = _subscriptionId;
-        keyHash = _keyHash;
+        s_keyHash = _keyHash;
         proxyRouter = _proxyRouter;
         allowedCallers[_owner] = true;
         allowedCallers[_proxyRouter] = true;
-        emit CallerAdded(_owner);
+        emit CallerAdded(_proxyRouter);
     }
 
     function requestRandomWords(
@@ -61,7 +59,7 @@ contract ChainlinkVRF is VRFConsumerBaseV2Plus, IChainlinkVRF {
         ) onlyOwnerOrAllowedCaller(msg.sender) external returns (uint256 requestId) {
         requestId = s_vrfCoordinator.requestRandomWords(
             VRFV2PlusClient.RandomWordsRequest({
-                keyHash: keyHash,
+                keyHash: s_keyHash,
                 subId: s_subscriptionId,
                 requestConfirmations: requestConfirmations,
                 callbackGasLimit: callbackGasLimit,
@@ -70,8 +68,6 @@ contract ChainlinkVRF is VRFConsumerBaseV2Plus, IChainlinkVRF {
             })
         );
         s_requests[requestId] = msg.sender;
-        requestIds.push(requestId);
-        lastRequestId = requestId;
         emit RequestSent(requestId, numWords);
         return requestId;
     }
@@ -141,6 +137,18 @@ contract ChainlinkVRF is VRFConsumerBaseV2Plus, IChainlinkVRF {
             allowedCallers[_caller] = false;
             emit CallerRemoved(_caller);
         }
+    }
+
+    function allowedCaller(address _caller) external view returns (bool) {
+        return allowedCallers[_caller];
+    }
+
+    function setSubscriptionId(uint256 _subscriptionId) external onlyOwner {
+        s_subscriptionId = _subscriptionId;
+    }
+
+    function setKeyHash(bytes32 _keyHash) external onlyOwner {
+        s_keyHash = _keyHash;
     }
 
 }
