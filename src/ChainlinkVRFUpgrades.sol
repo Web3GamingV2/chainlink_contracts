@@ -5,8 +5,8 @@ pragma solidity ^0.8.19;
 import { ChainlinkVRF } from "./ChainlinkVRF.sol";
 
 /// @custom:oz-upgrades-from ChainlinkVRF
-contract ChainlinkVRFV3 is ChainlinkVRF {
+contract ChainlinkVRFUpgrades is ChainlinkVRF {
     function version() external virtual pure returns (uint256) {
-        return 6;
+        return 8;
     }
 }

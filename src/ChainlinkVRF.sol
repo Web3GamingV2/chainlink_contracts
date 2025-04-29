@@ -20,34 +20,23 @@ import "./interfaces/IVRFConsumerBaseV2Plus.sol";
  * DO NOT USE THIS CODE IN PRODUCTION.
  */
 contract ChainlinkVRF is IVRFConsumerBaseV2Plus, IChainlinkVRF, Initializable, UUPSUpgradeable, OwnableUpgradeable {
-    event RequestSent(uint256 requestId, uint32 numWords);
-    event RequestFulfilled(uint256 requestId, uint256[] randomWords, bytes data, bool success);
-    event RandomWordsFulfilledCallee(address indexed callee, uint256 indexed requestId, uint256[] randomWords);
+    event RequestSent(uint256 indexed requestId, uint32 numWords);
+    event RequestFulfilled(uint256 indexed requestId, uint256[] randomWords);
     event CallerAdded(address indexed caller);
     event CallerRemoved(address indexed caller);
-    event RequestStatusRemoved(uint256 indexed requestId);
+    event ResponseStatusRemoved(uint256 indexed requestId);
     event ReciverRandomWordsErrorCall(address indexed callee, uint256 indexed requestId, string err);
 
     error ZeroAddress();
     error ReciverRandomWordsError(string err);
     error CallerNotAllowed(address caller);
-    error RequestNotFound(uint256 requestId);
+    error ResponseNotFound(uint256 requestId);
 
-    struct RequestStatus {
-        bool fulfilled; // whether the request has been successfully fulfilled
-        bool exists; // whether a requestId exists
-        uint256[] randomWords;
-        address callee;
-    }
-
-    mapping(uint256 => RequestStatus) public s_requests; /* requestId --> requestStatus */
+    mapping(uint256 => uint256[]) public s_requests; /* requestId --> requestStatus */
     mapping(address => bool) public allowedCallers;
 
     uint256 public s_subscriptionId;
     IVRFCoordinatorV2Plus public s_vrfCoordinator;
-
-    uint256[] public requestIds;
-    uint256 public lastRequestId;
     bytes32 public keyHash;
 
     modifier onlyOwnerOrAllowedCaller(address caller) {
@@ -80,12 +69,11 @@ contract ChainlinkVRF is IVRFConsumerBaseV2Plus, IChainlinkVRF, Initializable, U
     }
 
     function requestRandomWords(
-        bool enableNativePayment, 
+        bool enableNativePayment,
         uint32 numWords,
         uint16 requestConfirmations,
-        uint32 callbackGasLimit,
-        address callee
-        ) external returns (uint256 requestId) {
+        uint32 callbackGasLimit
+        ) onlyOwnerOrAllowedCaller(msg.sender) external returns (uint256 requestId) {
         requestId = s_vrfCoordinator.requestRandomWords(
             VRFV2PlusClient.RandomWordsRequest({
                 keyHash: keyHash,
@@ -96,58 +84,25 @@ contract ChainlinkVRF is IVRFConsumerBaseV2Plus, IChainlinkVRF, Initializable, U
                 extraArgs: VRFV2PlusClient._argsToBytes(VRFV2PlusClient.ExtraArgsV1({nativePayment: enableNativePayment}))
             })
         );
-        s_requests[requestId] = RequestStatus({randomWords: new uint256[](0), exists: true, fulfilled: false, callee: callee});
-        requestIds.push(requestId);
-        lastRequestId = requestId;
         emit RequestSent(requestId, numWords);
         return requestId;
     }
 
     function fulfillRandomWords(uint256 _requestId, uint256[] calldata _randomWords) internal override {
-        require(s_requests[_requestId].exists, "request not found");
-        s_requests[_requestId].fulfilled = true;
-        s_requests[_requestId].randomWords = _randomWords;
-        address callee = s_requests[_requestId].callee;
-        emit RandomWordsFulfilledCallee(callee, _requestId, _randomWords);
-        if (callee == address(0)) {
-            revert ZeroAddress();
-        }
-        // string memory err = "RevicerRandom failed: ";
-        bytes memory data = abi.encodeWithSignature(
-            "revicerRandomWords(uint256[])",
-            _randomWords
-        );
-        (bool success,) = address(callee).call(data);
-        // address callee = s_requests[_requestId].callee;
-        // emit RandomWordsFulfilledV1(callee, _requestId, _randomWords);
-        // if (callee != address(0)) {
-        //     string memory err = "RevicerRandom failed: ";
-        //     bytes memory data = abi.encodeWithSelector(
-        //         IChainlinkVRFCellee.revicerRandomWords.selector,
-        //         _randomWords
-        //     );
-        //     (bool success, bytes memory result) = callee.call(data);
-        //     if (!success) {
-        //         if (result.length > 0) {
-        //             err = string(abi.encodePacked(err, string(result)));
-        //         } else {
-        //             err = string(abi.encodePacked(err, "No data returned"));
-        //         }
-        //         emit ReciverRandomWordsErrorCall(callee, _requestId, err);
-        //         revert ReciverRandomWordsError(err);
-        //     }
-        // }
-        emit RequestFulfilled(_requestId, _randomWords, data, success);
+        s_requests[_requestId] = _randomWords;
+        emit RequestFulfilled(_requestId, _randomWords);
     }
 
-    function getRequestStatus(uint256 _requestId)
+    function getResponse(uint256 _requestId)
         external
         view
-        returns (bool fulfilled, uint256[] memory randomWords, address callee)
+        returns (uint256[] memory randomWords)
     {
-        require(s_requests[_requestId].exists, "request not found");
-        RequestStatus memory request = s_requests[_requestId];
-        return (request.fulfilled, request.randomWords, request.callee);
+        uint256[] memory response = s_requests[_requestId];
+        if (response.length == 0) {
+            revert ResponseNotFound(_requestId);
+        }
+        return response;
     }
 
     /**
@@ -155,12 +110,14 @@ contract ChainlinkVRF is IVRFConsumerBaseV2Plus, IChainlinkVRF, Initializable, U
      * @param _requestId The ID of the request status to remove.
      * @dev This only removes the entry from the s_requests mapping.
      */
-    function removeRequestStatus(uint256 _requestId) external onlyOwner {
-        if (!s_requests[_requestId].exists) {
-            revert RequestNotFound(_requestId);
+    function removeResponse(uint256 _requestId) external onlyOwner {
+        uint256[] memory response = s_requests[_requestId];
+        if (response.length != 0) {
+            delete s_requests[_requestId];
+            emit ResponseStatusRemoved(_requestId);
+        } else {
+            revert ResponseNotFound(_requestId);
         }
-        delete s_requests[_requestId];
-        emit RequestStatusRemoved(_requestId);
     }
 
         /**
