@@ -16,14 +16,16 @@ interface IChainlinkFC {
         uint64 subscriptionId,
         string[] calldata args,
         string calldata source, // Allow specifying source per request
-        uint32 gasLimit,      // Allow specifying gasLimit per request
-        address callee
+        uint32 gasLimit         // Allow specifying gasLimit per request
     ) external returns (bytes32 requestId);
 
-    function getRequestStatus(bytes32 _requestId)
+    function getResponse(bytes32 _requestId)
         external
         view
         returns (
-            address callee
-        );
+            bytes memory response
+    );
+
+     function removeResponse(bytes32 _requestId)
+        external;
 }

@@ -11,7 +11,7 @@ import "./interfaces/IChainlinkFCCallee.sol"; // Import the callee interface
 contract ChainlinkFC is FunctionsClient, ConfirmedOwner, IChainlinkFC {
     using FunctionsRequest for FunctionsRequest.Request;
 
-    mapping(bytes32 => address) public s_requests;
+    mapping(bytes32 => bytes) public s_requests;
     bytes32 public s_donId;
     address public s_router;
     address public proxyRouter;
@@ -20,10 +20,9 @@ contract ChainlinkFC is FunctionsClient, ConfirmedOwner, IChainlinkFC {
     event CallerAdded(address indexed caller);
     event CallerRemoved(address indexed caller);
     event Response(bytes32 indexed requestId, string character, bytes response, bytes err);
-    event ResponseCallbackFailed(address indexed callee, bytes32 indexed requestId, bytes err);
-    event RequestStatusRemoved(bytes32 indexed requestId);
-    event RequestSentIndex(bytes32 indexed requestId, address indexed callee);
-    event ResponseReceived(bytes32 indexed requestId, address indexed callee, bytes response);
+    event ResponseReceived(bytes32 indexed requestId, bytes response, bytes err);
+    event ResponseRemoved(bytes32 indexed requestId);
+    event RequestSentReceived(bytes32 indexed requestId, address indexed callee);
 
     error UnexpectedRequestID(bytes32 requestId);
     error RequestNotFound(bytes32 requestId);
@@ -65,10 +64,9 @@ contract ChainlinkFC is FunctionsClient, ConfirmedOwner, IChainlinkFC {
         uint64 subscriptionId,
         string[] calldata args, 
         string calldata source,
-        uint32 callbackGasLimit,     
-        address callee
+        uint32 callbackGasLimit
     )
-        onlyOwnerOrAllowedCaller(callee)
+        onlyOwnerOrAllowedCaller(msg.sender)
         external
         returns (bytes32 requestId)
     {
@@ -77,11 +75,7 @@ contract ChainlinkFC is FunctionsClient, ConfirmedOwner, IChainlinkFC {
         if (args.length > 0) req.setArgs(args); // Set the arguments for the request
 
         bytes32 s_lastRequestId = _sendRequest(req.encodeCBOR(), subscriptionId, callbackGasLimit, s_donId);
-
-        s_requests[requestId] = callee;
-
-        emit RequestSent(requestId); 
-        emit RequestSentIndex(requestId, callee); // Emit an event for the request ID and callee address
+        emit RequestSentReceived(requestId, msg.sender); // Emit an event for the request ID and callee address
 
         return s_lastRequestId;
     }
@@ -93,46 +87,31 @@ contract ChainlinkFC is FunctionsClient, ConfirmedOwner, IChainlinkFC {
      * @param err Any errors from the Functions request
      */
     function fulfillRequest(bytes32 requestId, bytes memory response, bytes memory err) internal override {
-        address callee = s_requests[requestId];
-         if (callee == address(0)) {
-            revert ZeroAddress();
-        }
-         bytes memory data = abi.encodeWithSignature(
-            "receiveFunctionResponse(bytes32,bytes)",
-            requestId,
-            response
-        );
-
-        (bool success,) = address(callee).call(data);
-        if (!success) {
-            emit ResponseCallbackFailed(callee, requestId, err);
-        } else {
-            emit ResponseReceived(requestId, callee, response);
-        }
+        s_requests[requestId] = response;
+        emit ResponseReceived(requestId, response, err);
     }
 
-    function getRequestStatus(bytes32 _requestId)
+    function getResponse(bytes32 _requestId)
         external
         view
         override
         returns (
-            address callee
+            bytes memory response
         )
     {
-        address _callee = s_requests[_requestId];
-        if (_callee == address(0)) {
+        bytes memory _response = s_requests[_requestId];
+        if (_response.length == 0) {
             revert RequestNotFound(_requestId);
         }
-        return _callee;
+        return _response;
     }
 
-    function removeRequestStatus(bytes32 _requestId) external onlyOwner {
-         address _callee = s_requests[_requestId];
-        if (_callee == address(0)) {
-            revert RequestNotFound(_requestId);
+    function removeResponse(bytes32 _requestId) external onlyOwner {
+        bytes memory _response = s_requests[_requestId];
+        if (_response.length != 0) {
+            delete s_requests[_requestId];
+            emit ResponseRemoved(_requestId);
         }
-        delete s_requests[_requestId];
-        emit RequestStatusRemoved(_requestId);
     }
 
     /**

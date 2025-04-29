@@ -33,21 +33,24 @@ contract ChainlinkFCReciver is IChainlinkFCCallee {
         fc = IChainlinkFC(fcAddress);
     }
 
+    // TODO 这里把 requestId 存在后端服务后续用户通过 id 自己获取链上结果
     function requestFunction(
         uint64 subscriptionId,
         string[] calldata args,
         uint32 callbackGasLimit
-    ) external {
+    ) external returns (bytes32) {
         bytes32 requestId = fc.sendRequest(
             subscriptionId,
             args,
             source,
-            callbackGasLimit,
-            address(this)
+            callbackGasLimit
         );
         emit RequestSent(requestId);
+        // 查询 ResponseReceived 事件 然后根据 id 去数据库匹配结果回填 找到后代表上链成功
+        return requestId;
     }
 
+    // TODO 监听 receive 事件 然后根据 id 去数据库匹配结果回填
     function receiveFunctionResponse(bytes32 _requestId,bytes memory _response) external {
         emit ResponseFulfilled(_requestId,_response);
     }

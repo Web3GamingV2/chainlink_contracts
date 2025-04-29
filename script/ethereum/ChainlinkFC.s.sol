@@ -10,12 +10,12 @@ import {ChainlinkFC} from "../../src/ChainlinkFC.sol";
 /**
  * == Logs ==
   Deploying contracts with the account: 0x355eb1c3D6dF0642b3abe2785e821C574837C79f
-  GettingStartedFunctionsConsumer address: 0x0Bf578a802E6CbFF1D8a5328b7f9a0F6e19Af859
+  GettingStartedFunctionsConsumer address: 0x90f881b6824928B54B318ff28a2FFb4543F7ec16
   Contract owner: 0x355eb1c3D6dF0642b3abe2785e821C574837C79f
  *   Is deployer owner? true
  *   cast send --rpc-url $WEB3GAMING_ALCHEMY_RPC_URL --private-key $WEB3GAMING_PRIVATE_KEY 0x2fA187E546862D5d3B614BF9E733f92A1DB91070 "sendRequest(uint64,string[])(bytes32)" 4605 "[1]"
-     cast call --rpc-url $WEB3GAMING_ALCHEMY_RPC_URL 0x0Bf578a802E6CbFF1D8a5328b7f9a0F6e19Af859 "allowedCallers(address)(bool)" 0xD042dF288c4fC9C26ff1D27912c13dC8978Af042
-     cast send --rpc-url $WEB3GAMING_ALCHEMY_RPC_URL --private-key $WEB3GAMING_PRIVATE_KEY 0x0Bf578a802E6CbFF1D8a5328b7f9a0F6e19Af859 "addCaller(address)" 0xD042dF288c4fC9C26ff1D27912c13dC8978Af042
+     cast call --rpc-url $WEB3GAMING_ALCHEMY_RPC_URL 0x90f881b6824928B54B318ff28a2FFb4543F7ec16 "allowedCallers(address)(bool)" 0x95f30aA4BB54cecd348AEb65A7a40da96e759419
+     cast send --rpc-url $WEB3GAMING_ALCHEMY_RPC_URL --private-key $WEB3GAMING_PRIVATE_KEY 0x90f881b6824928B54B318ff28a2FFb4543F7ec16 "addCaller(address)" 0x95f30aA4BB54cecd348AEb65A7a40da96e759419
  */ 
 
 contract ChainlinkFCScript is Script {

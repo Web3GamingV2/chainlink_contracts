@@ -57,9 +57,8 @@ contract ChainlinkVRF is VRFConsumerBaseV2Plus, IChainlinkVRF {
         bool enableNativePayment, 
         uint32 numWords,
         uint16 requestConfirmations,
-        uint32 callbackGasLimit,
-        address callee
-        ) onlyOwnerOrAllowedCaller(callee) external returns (uint256 requestId) {
+        uint32 callbackGasLimit
+        ) onlyOwnerOrAllowedCaller(msg.sender) external returns (uint256 requestId) {
         requestId = s_vrfCoordinator.requestRandomWords(
             VRFV2PlusClient.RandomWordsRequest({
                 keyHash: keyHash,
@@ -70,7 +69,7 @@ contract ChainlinkVRF is VRFConsumerBaseV2Plus, IChainlinkVRF {
                 extraArgs: VRFV2PlusClient._argsToBytes(VRFV2PlusClient.ExtraArgsV1({nativePayment: enableNativePayment}))
             })
         );
-        s_requests[requestId] = callee;
+        s_requests[requestId] = msg.sender;
         requestIds.push(requestId);
         lastRequestId = requestId;
         emit RequestSent(requestId, numWords);

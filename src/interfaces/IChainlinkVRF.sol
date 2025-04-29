@@ -7,7 +7,8 @@ interface IChainlinkVRF {
         bool enableNativePayment, 
         uint32 numWords,
         uint16 requestConfirmations,
-        uint32 callbackGasLimit, address callee) external returns (uint256 requestId);
+        uint32 callbackGasLimit
+        ) external returns (uint256 requestId);
     function getRequestStatus(uint256 _requestId)
         external
         returns (address callee);
