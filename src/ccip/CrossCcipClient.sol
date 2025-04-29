@@ -6,9 +6,9 @@ import {IRouterClient} from "@chainlink/contracts/src/v0.8/ccip/interfaces/IRout
 import {Client} from "@chainlink/contracts/src/v0.8/ccip/libraries/Client.sol";
 import {ConfirmedOwner} from "@chainlink/contracts/src/v0.8/shared/access/ConfirmedOwner.sol"; // Import ConfirmedOwner
 
-import "../interfaces/ICrossChainSender.sol"; // Import the new interface
+import "../interfaces/ICrossChainClient.sol"; // Import the new interface
 
-contract CrossCcipSender is ICrossChainSender, ConfirmedOwner { // Implement interface and use ConfirmedOwner
+contract CrossCcipClient is ICrossChainClient, ConfirmedOwner { // Implement interface and use ConfirmedOwner
 
     // Custom errors
     error NotEnoughBalance(uint256 currentBalance, uint256 calculatedFees);
@@ -31,12 +31,13 @@ contract CrossCcipSender is ICrossChainSender, ConfirmedOwner { // Implement int
         linkToken.approve(_routerAddress, type(uint256).max);
     }
 
+    // 消息发送方指定目标地址
     function sendMessage(
         uint64 _destinationChainSelector,
         address _receiver,
         address _targetContract,
         bytes calldata _targetCallData,
-        uint256 _gasLimit
+        uint256 _callbackGasLimit // 980_000
     ) external override onlyOwner returns (bytes32 messageId) {
         require(_targetContract != address(0), "Invalid targetContract address");
         require(_receiver != address(0), "Invalid receiver address");
@@ -46,7 +47,7 @@ contract CrossCcipSender is ICrossChainSender, ConfirmedOwner { // Implement int
             data: combinedData,
             tokenAmounts: new Client.EVMTokenAmount[](0),
             extraArgs: Client._argsToBytes(
-                Client.EVMExtraArgsV1({gasLimit: _gasLimit})
+                Client.EVMExtraArgsV1({gasLimit: _callbackGasLimit})
             ),
             feeToken: address(linkToken)
         });

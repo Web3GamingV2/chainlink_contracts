@@ -40,6 +40,7 @@ contract CrossCcipReceiver is CCIPReceiver, ConfirmedOwner {
     {
     }
 
+    // 消息接收方指定目标地址
     function _ccipReceive(Client.Any2EVMMessage memory message) internal override {
         address sender = abi.decode(message.sender, (address));
         uint64 sourceChainSelector = message.sourceChainSelector;

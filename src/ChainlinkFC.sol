@@ -51,7 +51,7 @@ contract ChainlinkFC is FunctionsClient, ConfirmedOwner, IChainlinkFC {
         proxyRouter = _proxyRouter;
         allowedCallers[_owner] = true;
         allowedCallers[_proxyRouter] = true;
-        emit CallerAdded(_owner);
+        emit CallerAdded(_proxyRouter);
     }
 
     /**
