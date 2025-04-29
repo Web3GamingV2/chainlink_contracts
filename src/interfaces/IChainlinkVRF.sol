@@ -10,5 +10,5 @@ interface IChainlinkVRF {
         uint32 callbackGasLimit, address callee) external returns (uint256 requestId);
     function getRequestStatus(uint256 _requestId)
         external
-        returns (bool fulfilled, uint256[] memory randomWords, address callee);
+        returns (address callee);
 }

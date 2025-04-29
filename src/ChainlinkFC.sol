@@ -11,26 +11,48 @@ import "./interfaces/IChainlinkFCCallee.sol"; // Import the callee interface
 contract ChainlinkFC is FunctionsClient, ConfirmedOwner, IChainlinkFC {
     using FunctionsRequest for FunctionsRequest.Request;
 
-    mapping(bytes32 => RequestStatus) public s_requests;
+    mapping(bytes32 => address) public s_requests;
     bytes32 public s_donId;
     address public s_router;
+    address public proxyRouter;
+    mapping(address => bool) public allowedCallers;
+
+    event CallerAdded(address indexed caller);
+    event CallerRemoved(address indexed caller);
+    event Response(bytes32 indexed requestId, string character, bytes response, bytes err);
+    event ResponseCallbackFailed(address indexed callee, bytes32 indexed requestId, bytes err);
+    event RequestStatusRemoved(bytes32 indexed requestId);
+    event RequestSentIndex(bytes32 indexed requestId, address indexed callee);
+    event ResponseReceived(bytes32 indexed requestId, address indexed callee, bytes response);
 
     error UnexpectedRequestID(bytes32 requestId);
-    event Response(bytes32 indexed requestId, string character, bytes response, bytes err);
     error RequestNotFound(bytes32 requestId);
+    error CallerNotAllowed(address caller);
     error CallbackFailed(address callee, bytes32 requestId);
+    error ZeroAddress();
 
+    modifier onlyOwnerOrAllowedCaller(address caller) {
+        if (!allowedCallers[caller]) {
+            revert CallerNotAllowed(caller);
+        }
+        _;
+    }
 
     /**
      * @notice Initializes the contract with the Chainlink router address and sets the contract owner
      */
     constructor(
+        address _owner,
+        address _proxyRouter,
         address _router,
-        bytes32 _donId,
-        address _owner
+        bytes32 _donId
     ) FunctionsClient(_router) ConfirmedOwner(_owner) {
         s_router = _router;
         s_donId = _donId;
+        proxyRouter = _proxyRouter;
+        allowedCallers[_owner] = true;
+        allowedCallers[_proxyRouter] = true;
+        emit CallerAdded(_owner);
     }
 
     /**
@@ -42,29 +64,24 @@ contract ChainlinkFC is FunctionsClient, ConfirmedOwner, IChainlinkFC {
     function sendRequest(
         uint64 subscriptionId,
         string[] calldata args, 
-        string calldata source, // Pass source code as argument
-        uint32 gasLimit,      // Pass gas limit as argument
+        string calldata source,
+        uint32 callbackGasLimit,     
         address callee
     )
+        onlyOwnerOrAllowedCaller(callee)
         external
-        onlyOwner
         returns (bytes32 requestId)
     {
         FunctionsRequest.Request memory req;
         req.initializeRequestForInlineJavaScript(source); // Initialize the request with JS code
         if (args.length > 0) req.setArgs(args); // Set the arguments for the request
 
-        bytes32 s_lastRequestId = _sendRequest(req.encodeCBOR(), subscriptionId, gasLimit, s_donId);
+        bytes32 s_lastRequestId = _sendRequest(req.encodeCBOR(), subscriptionId, callbackGasLimit, s_donId);
 
-        s_requests[requestId] = RequestStatus({
-            fulfilled: false,
-            exists: true,
-            response: "",
-            err: "",
-            callee: callee
-        });
+        s_requests[requestId] = callee;
 
-        emit RequestSent(requestId, callee); 
+        emit RequestSent(requestId); 
+        emit RequestSentIndex(requestId, callee); // Emit an event for the request ID and callee address
 
         return s_lastRequestId;
     }
@@ -76,23 +93,21 @@ contract ChainlinkFC is FunctionsClient, ConfirmedOwner, IChainlinkFC {
      * @param err Any errors from the Functions request
      */
     function fulfillRequest(bytes32 requestId, bytes memory response, bytes memory err) internal override {
-         RequestStatus storage request = s_requests[requestId];
-        if (!request.exists) {
-            revert UnexpectedRequestID(requestId); // Check if request IDs match
+        address callee = s_requests[requestId];
+         if (callee == address(0)) {
+            revert ZeroAddress();
         }
-        request.fulfilled = true;
-        request.response = response;
-        request.err = err;
-        emit ResponseReceived(requestId, response, err);
-        address callee = request.callee;
-        if (callee != address(0)) {
-            try IChainlinkFCCallee(callee).receiveFunctionResponse(requestId, response, err) returns (bool success) {
-                if (!success) {
-                    revert CallbackFailed(callee, requestId);
-                }
-            } catch (bytes memory reason) {
-                revert(string(abi.encodePacked("ResponseReceived: ", string(reason))));
-            }
+         bytes memory data = abi.encodeWithSignature(
+            "receiveFunctionResponse(bytes32,bytes)",
+            requestId,
+            response
+        );
+
+        (bool success,) = address(callee).call(data);
+        if (!success) {
+            emit ResponseCallbackFailed(callee, requestId, err);
+        } else {
+            emit ResponseReceived(requestId, callee, response);
         }
     }
 
@@ -101,16 +116,46 @@ contract ChainlinkFC is FunctionsClient, ConfirmedOwner, IChainlinkFC {
         view
         override
         returns (
-            bool fulfilled,
-            bytes memory response,
-            bytes memory err,
             address callee
         )
     {
-        RequestStatus storage request = s_requests[_requestId];
-        if (!request.exists) {
+        address _callee = s_requests[_requestId];
+        if (_callee == address(0)) {
             revert RequestNotFound(_requestId);
         }
-        return (request.fulfilled, request.response, request.err, request.callee);
+        return _callee;
+    }
+
+    function removeRequestStatus(bytes32 _requestId) external onlyOwner {
+         address _callee = s_requests[_requestId];
+        if (_callee == address(0)) {
+            revert RequestNotFound(_requestId);
+        }
+        delete s_requests[_requestId];
+        emit RequestStatusRemoved(_requestId);
+    }
+
+    /**
+     * @notice Allows the owner to add an address to the list of allowed callers.
+     * @param _caller The address to allow.
+     */
+    function addCaller(address _caller) external onlyOwner {
+        require(_caller != address(0), "Caller cannot be zero address");
+        if (!allowedCallers[_caller]) {
+            allowedCallers[_caller] = true;
+            emit CallerAdded(_caller);
+        }
+    }
+
+    /**
+     * @notice Allows the owner to remove an address from the list of allowed callers.
+     * @param _caller The address to disallow.
+     */
+    function removeCaller(address _caller) external onlyOwner {
+        require(_caller != address(0), "Caller cannot be zero address");
+        if (allowedCallers[_caller]) {
+            allowedCallers[_caller] = false;
+            emit CallerRemoved(_caller);
+        }
     }
 }

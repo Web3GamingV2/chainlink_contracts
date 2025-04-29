@@ -18,19 +18,11 @@ contract ChainlinkVRF is VRFConsumerBaseV2Plus, IChainlinkVRF {
     event RequestStatusRemoved(uint256 indexed requestId);
     event ReciverRandomWordsErrorCall(address indexed callee, uint256 indexed requestId, string err);
 
-    // error ZeroAddress();
     error ReciverRandomWordsError(string err);
     error CallerNotAllowed(address caller);
     error RequestNotFound(uint256 requestId);
 
-    struct RequestStatus {
-        bool fulfilled; // whether the request has been successfully fulfilled
-        bool exists; // whether a requestId exists
-        uint256[] randomWords;
-        address callee;
-    }
-
-    mapping(uint256 => RequestStatus) public s_requests; /* requestId --> requestStatus */
+    mapping(uint256 => address) public s_requests; /* requestId --> requestStatus */
     mapping(address => bool) public allowedCallers;
 
     uint256 public s_subscriptionId;
@@ -45,6 +37,7 @@ contract ChainlinkVRF is VRFConsumerBaseV2Plus, IChainlinkVRF {
         }
         _;
     }
+
     constructor(
         address _owner,
         address _proxyRouter,
@@ -66,7 +59,7 @@ contract ChainlinkVRF is VRFConsumerBaseV2Plus, IChainlinkVRF {
         uint16 requestConfirmations,
         uint32 callbackGasLimit,
         address callee
-        ) external returns (uint256 requestId) {
+        ) onlyOwnerOrAllowedCaller(callee) external returns (uint256 requestId) {
         requestId = s_vrfCoordinator.requestRandomWords(
             VRFV2PlusClient.RandomWordsRequest({
                 keyHash: keyHash,
@@ -77,7 +70,7 @@ contract ChainlinkVRF is VRFConsumerBaseV2Plus, IChainlinkVRF {
                 extraArgs: VRFV2PlusClient._argsToBytes(VRFV2PlusClient.ExtraArgsV1({nativePayment: enableNativePayment}))
             })
         );
-        s_requests[requestId] = RequestStatus({randomWords: new uint256[](0), exists: true, fulfilled: false, callee: callee});
+        s_requests[requestId] = callee;
         requestIds.push(requestId);
         lastRequestId = requestId;
         emit RequestSent(requestId, numWords);
@@ -85,35 +78,33 @@ contract ChainlinkVRF is VRFConsumerBaseV2Plus, IChainlinkVRF {
     }
 
     function fulfillRandomWords(uint256 _requestId, uint256[] calldata _randomWords) internal override {
-        require(s_requests[_requestId].exists, "request not found");
-        s_requests[_requestId].fulfilled = true;
-        s_requests[_requestId].randomWords = _randomWords;
-        address callee = s_requests[_requestId].callee;
-        emit RandomWordsFulfilledCallee(callee, _requestId, _randomWords);
+        address callee = s_requests[_requestId];
         if (callee == address(0)) {
             revert ZeroAddress();
         }
-        string memory err = "RevicerRandom failed";
+        emit RandomWordsFulfilledCallee(callee, _requestId, _randomWords);
         bytes memory data = abi.encodeWithSignature(
             "receiveRandomWords(uint256[])",
             _randomWords
         );
         (bool success,) = address(callee).call(data);
         if (!success) {
-            emit ReciverRandomWordsErrorCall(callee, _requestId, err);
-            revert ReciverRandomWordsError(err);
+            emit ReciverRandomWordsErrorCall(callee, _requestId, "RevicerRandom failed");
+        } else {
+            emit RequestFulfilled(_requestId, _randomWords, data, success);
         }
-        emit RequestFulfilled(_requestId, _randomWords, data, success);
     }
 
     function getRequestStatus(uint256 _requestId)
         external
         view
-        returns (bool fulfilled, uint256[] memory randomWords, address callee)
+        returns (address callee)
     {
-        require(s_requests[_requestId].exists, "request not found");
-        RequestStatus memory request = s_requests[_requestId];
-        return (request.fulfilled, request.randomWords, request.callee);
+        address _callee = s_requests[_requestId];
+        if (_callee == address(0)) {
+            revert RequestNotFound(_requestId);
+        }
+        return _callee;
     }
 
     /**
@@ -122,14 +113,14 @@ contract ChainlinkVRF is VRFConsumerBaseV2Plus, IChainlinkVRF {
      * @dev This only removes the entry from the s_requests mapping.
      */
     function removeRequestStatus(uint256 _requestId) external onlyOwner {
-        if (!s_requests[_requestId].exists) {
+        if (s_requests[_requestId] == address(0)) {
             revert RequestNotFound(_requestId);
         }
         delete s_requests[_requestId];
         emit RequestStatusRemoved(_requestId);
     }
 
-        /**
+    /**
      * @notice Allows the owner to add an address to the list of allowed callers.
      * @param _caller The address to allow.
      */

@@ -2,16 +2,15 @@
 pragma solidity ^0.8.19;
 
 interface IChainlinkFC {
+
     struct RequestStatus {
         bool fulfilled; // whether the request has been successfully fulfilled
         bool exists; // whether a requestId exists
         bytes response; // The response data
         bytes err; // Any error data
         address callee; // The address to call back upon fulfillment
+        string source; // The source code for the request
     }
-
-    event RequestSent(bytes32 indexed requestId, address callee);
-    event ResponseReceived(bytes32 indexed requestId, bytes response, bytes err);
 
     function sendRequest(
         uint64 subscriptionId,
@@ -25,9 +24,6 @@ interface IChainlinkFC {
         external
         view
         returns (
-            bool fulfilled,
-            bytes memory response,
-            bytes memory err,
             address callee
         );
 }
