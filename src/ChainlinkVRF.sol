@@ -36,8 +36,8 @@ contract ChainlinkVRF is IVRFConsumerBaseV2Plus, IChainlinkVRF, Initializable, U
     mapping(address => bool) public allowedCallers;
 
     uint256 public s_subscriptionId;
+    bytes32 public s_keyHash;
     IVRFCoordinatorV2Plus public s_vrfCoordinator;
-    bytes32 public keyHash;
 
     modifier onlyOwnerOrAllowedCaller(address caller) {
         if (!allowedCallers[caller]) {
@@ -56,7 +56,7 @@ contract ChainlinkVRF is IVRFConsumerBaseV2Plus, IChainlinkVRF, Initializable, U
         __UUPSUpgradeable_init();
         _initializeVRF(_vrfCoordinator);
         s_subscriptionId = _subscriptionId;
-        keyHash = _keyHash;
+        s_keyHash = _keyHash;
         allowedCallers[_owner] = true;
         emit CallerAdded(_owner);
     }
@@ -76,7 +76,7 @@ contract ChainlinkVRF is IVRFConsumerBaseV2Plus, IChainlinkVRF, Initializable, U
         ) onlyOwnerOrAllowedCaller(msg.sender) external returns (uint256 requestId) {
         requestId = s_vrfCoordinator.requestRandomWords(
             VRFV2PlusClient.RandomWordsRequest({
-                keyHash: keyHash,
+                keyHash: s_keyHash,
                 subId: s_subscriptionId,
                 requestConfirmations: requestConfirmations,
                 callbackGasLimit: callbackGasLimit,
@@ -142,6 +142,14 @@ contract ChainlinkVRF is IVRFConsumerBaseV2Plus, IChainlinkVRF, Initializable, U
             allowedCallers[_caller] = false;
             emit CallerRemoved(_caller);
         }
+    }
+
+    function setSubscriptionId(uint256 _subscriptionId) external onlyOwner {
+        s_subscriptionId = _subscriptionId;
+    }
+
+    function setKeyHash(bytes32 _keyHash) external onlyOwner {
+        s_keyHash = _keyHash;
     }
 
      function _authorizeUpgrade(address newImplementation)
