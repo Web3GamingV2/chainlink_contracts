@@ -125,7 +125,7 @@ contract CrossCcip is ICrossChainClient, CCIPReceiver, ConfirmedOwner {
         uint64 sourceChainSelector = message.sourceChainSelector;
         bytes memory packedData = message.data;
         
-       (address targetContract, bytes memory targetCallDataForHandler) = loadPackedData(packedData);
+       (address targetContract, bytes memory targetCallDataForHandler) = _loadPackedData(packedData);
 
         bytes memory data = abi.encodeWithSignature(
             "handleCCIPMessage(uint64,address,bytes)",
@@ -154,22 +154,22 @@ contract CrossCcip is ICrossChainClient, CCIPReceiver, ConfirmedOwner {
         linkTokenClient.transfer(beneficiary, amount);
     }
 
-    function loadPackedData(bytes memory packedData) external pure returns (address target, bytes memory callData) {
-            require(packedData.length >= 20, InvalidPackedDataLength("Packed data too short"));
+    function _loadPackedData(bytes memory packedData) internal pure returns (address target, bytes memory callData) {
+            require(packedData.length >= 20, "Packed data too short");
             // 提取前 20 字节为地址
-            bytes20 addrBytes;
             assembly {
-                addrBytes := mload(add(packedData, 0x20)) // 读取前 32 字节中的前 20 字节
+                target := shr(96, mload(add(packedData, 0x20)))
             }
-
-            target = address(addrBytes);
-
             // 剩下的是 callData
             uint256 dataLength = packedData.length - 20;
             callData = new bytes(dataLength);
             for (uint256 i = 0; i < dataLength; i++) {
                 callData[i] = packedData[i + 20];
             }
+    }
+
+    function loadPackedData (bytes memory packedData) public pure returns (address target, bytes memory callData) {
+        return _loadPackedData(packedData);
     }
 
 }
