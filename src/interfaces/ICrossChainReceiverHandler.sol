@@ -13,12 +13,10 @@ interface ICrossChainReceiverHandler {
      * @param sender The address of the sender contract on the source chain.
      * @param data The arbitrary data payload sent with the message.
      * @dev This function is called by CrossCcipReceiver after validating the message source.
-     *      Implementers should contain the specific business logic for the received message.
-     * @return success Boolean indicating if the handling was successful.
      */
-    function handleMessage(
+    function handleCCIPMessage(
         uint64 sourceChainSelector,
         address sender,
         bytes calldata data
-    ) external returns (bool success);
+    ) external;
 }
