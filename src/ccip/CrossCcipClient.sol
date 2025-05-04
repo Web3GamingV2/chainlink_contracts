@@ -32,7 +32,7 @@ contract CrossCcipClient is ICrossChainClient, ConfirmedOwner { // Implement int
     }
 
     // 消息发送方指定目标地址
-    function sendMessage(
+    function sendCcip(
         uint64 _destinationChainSelector,
         address _receiver,
         address _targetContract,

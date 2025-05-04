@@ -37,11 +37,11 @@ contract CrossCcip is ICrossChainClient, CCIPReceiver, ConfirmedOwner {
     event SenderDisallowed(uint64 indexed sourceChainSelector, address indexed sender);
     event HandlerUpdated(address indexed oldHandler, address indexed newHandler);
 
-    // State variables
     address public  routerCCIPClientAddress;
     IRouterClient public  routerCCIPClient;
     LinkTokenInterface public linkTokenClient;
 
+    bool public approved;
     mapping(address => bool) public allowedSenders;
 
     modifier onlyAllowedSender(uint64 _sourceChainSelector, address _sender) {
@@ -60,6 +60,7 @@ contract CrossCcip is ICrossChainClient, CCIPReceiver, ConfirmedOwner {
         _initializeCCIPClient(_routerCCIPClient, _linkTokenClient);
         // _initializeCCIPReceiver(_routerCCIPReceiver);
         allowedSenders[_owner] = true;
+        approveRouter();
     }
 
     // function _initializeCCIPReceiver(
@@ -79,21 +80,22 @@ contract CrossCcip is ICrossChainClient, CCIPReceiver, ConfirmedOwner {
         routerCCIPClientAddress = _router;
     }
 
-    function approveRouter(
-    ) external onlyOwner {
+    function approveRouter() internal {
         require(routerCCIPClientAddress != address(0), "Router address cannot be zero");
         linkTokenClient.approve(routerCCIPClientAddress, type(uint256).max);
+        approved = true;
     }
 
     // 消息发送方指定目标地址
-    function sendMessage(
-        uint64 _destinationChainSelector,
-        address _receiver,
-        address _targetContract,
-        bytes calldata _targetCallData,
+    // Amoy 调用
+    function sendCcip(
+        uint64 _destinationChainSelector, // 目标链的 selector
+        address _receiver, // 目标链 receiver 的合约地址就是 执行 _ccipReceive 的合约地址
+        address _targetContract, // 目标链被调用的合约地址
+        bytes calldata _targetCallData, // 目标链被调用的合约的函数 一般是 _ccipReceive 的 message.data
         uint256 _callbackGasLimit // 980_000
     ) external override onlyAllowedSender(_destinationChainSelector, msg.sender) returns (bytes32 messageId) {
-        require(_targetContract != address(0) && _receiver != address(0), "Invalid targetContract address");
+        require(_targetContract != address(0) && _receiver != address(0) && approved, "Invalid targetContract address");
         address linkToken = address(linkTokenClient);
         bytes memory combinedData = abi.encodePacked(_targetContract, _targetCallData);
         Client.EVM2AnyMessage memory message = Client.EVM2AnyMessage({
@@ -123,7 +125,7 @@ contract CrossCcip is ICrossChainClient, CCIPReceiver, ConfirmedOwner {
         uint64 sourceChainSelector = message.sourceChainSelector;
         bytes memory packedData = message.data;
         
-       (address targetContract, bytes memory targetCallDataForHandler) = _loadPackedData(packedData);
+       (address targetContract, bytes memory targetCallDataForHandler) = loadPackedData(packedData);
 
         bytes memory data = abi.encodeWithSignature(
             "handleCCIPMessage(uint64,address,bytes)",
@@ -152,38 +154,22 @@ contract CrossCcip is ICrossChainClient, CCIPReceiver, ConfirmedOwner {
         linkTokenClient.transfer(beneficiary, amount);
     }
 
-     function _loadPackedData(bytes memory packedData) internal pure returns (address, bytes memory) {
-        uint256 dataLength = packedData.length;
-        if (dataLength < 20) {
-            revert InvalidPackedDataLength(dataLength); // Must be at least 20 bytes for the address
-        }
-
-        address targetContract;
-        bytes memory targetCallData;
-        assembly {
-            let word0 := mload(add(packedData, 0x20))
-            targetContract := and(word0, 0xffffffffffffffffffffffffffffffffffffffff)
-            let callDataLength := sub(dataLength, 20)
-            targetCallData := mload(0x40)
-            mstore(targetCallData, callDataLength)
-            let srcOffset := add(packedData, 52)
-            let destOffset := add(targetCallData, 32)
-            for { let i := 0 } lt(i, callDataLength) { i := add(i, 32) } {
-                let chunkSize := sub(callDataLength, i)
-                if gt(chunkSize, 32) { chunkSize := 32 }
-                let temp := mload(add(srcOffset, i))
-                if lt(chunkSize, 32) {
-                    let mask := sub(shl(mul(8, sub(32, chunkSize)), 1), 1)
-                    temp := and(temp, not(mask))
-                }
-                mstore(add(destOffset, i), temp)
+    function loadPackedData(bytes memory packedData) external pure returns (address target, bytes memory callData) {
+            require(packedData.length >= 20, InvalidPackedDataLength("Packed data too short"));
+            // 提取前 20 字节为地址
+            bytes20 addrBytes;
+            assembly {
+                addrBytes := mload(add(packedData, 0x20)) // 读取前 32 字节中的前 20 字节
             }
-            mstore(0x40, add(targetCallData, add(callDataLength, 32)))
-        }
-        return (
-            targetContract,
-            targetCallData
-        );
+
+            target = address(addrBytes);
+
+            // 剩下的是 callData
+            uint256 dataLength = packedData.length - 20;
+            callData = new bytes(dataLength);
+            for (uint256 i = 0; i < dataLength; i++) {
+                callData[i] = packedData[i + 20];
+            }
     }
 
 }

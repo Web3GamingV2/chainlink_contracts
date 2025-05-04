@@ -14,7 +14,7 @@ interface ICrossChainClient {
         uint256 fees
     );
 
-    function sendMessage(
+    function sendCcip(
         uint64 _destinationChainSelector,
         address _receiver,
         address _targetContract, // Address of the contract to call on destination
