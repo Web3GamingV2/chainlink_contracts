@@ -11,23 +11,24 @@ import {CrossCcip} from "../src/ccip/Ccip.sol";
  *  
  *  发送端
     == Return ==
-    0: address 0x63ffFaD3e84636C717B70C51cc4ad14EfEe92f02
+    0: address 0x471E1BAA27b8Cd1feF22eaCC3a6cE4003812263f
 
     == Logs ==
     Deploying contracts with the account: 0x355eb1c3D6dF0642b3abe2785e821C574837C79f
-    CrossCcip address: 0x63ffFaD3e84636C717B70C51cc4ad14EfEe92f02
+    CrossCcip address: 0x471E1BAA27b8Cd1feF22eaCC3a6cE4003812263f
 
-    cast send --rpc-url https://polygon-amoy.g.alchemy.com/v2/vkZ5WPCV0qB9Gye9sajMsn9YhdSl7Shy --private-key $WEB3GAMING_PRIVATE_KEY 0x63ffFaD3e84636C717B70C51cc4ad14EfEe92f02 "sendCcip(uint64,address,address,bytes,uint256)(bytes32)" 16015286601757825753 0x4Fb05Ec634211e81a783b8B67a5575E0e21623DB 0xBd32Bec48cE1d57e2980e1c6Cf2FFF085563171c 0x6c65656c6f6e677869 980000
-    cast send --rpc-url https://polygon-amoy.g.alchemy.com/v2/vkZ5WPCV0qB9Gye9sajMsn9YhdSl7Shy --private-key $WEB3GAMING_PRIVATE_KEY 0x63ffFaD3e84636C717B70C51cc4ad14EfEe92f02 "approveRouter()"
+    cast send --rpc-url https://polygon-amoy.g.alchemy.com/v2/vkZ5WPCV0qB9Gye9sajMsn9YhdSl7Shy --private-key $WEB3GAMING_PRIVATE_KEY 0x471E1BAA27b8Cd1feF22eaCC3a6cE4003812263f "sendCcip(uint64,address,address,bytes,uint256)(bytes32)" 16015286601757825753 0x4Fb05Ec634211e81a783b8B67a5575E0e21623DB 0x5aEB3C8A00d97C41Fb76Dc5a3EEb4BFa6879b0cf 0x6c65656c6f6e677869 980000
+    cast send --rpc-url https://polygon-amoy.g.alchemy.com/v2/vkZ5WPCV0qB9Gye9sajMsn9YhdSl7Shy --private-key $WEB3GAMING_PRIVATE_KEY 0x471E1BAA27b8Cd1feF22eaCC3a6cE4003812263f "approveRouter()"
+    cast call --rpc-url https://polygon-amoy.g.alchemy.com/v2/vkZ5WPCV0qB9Gye9sajMsn9YhdSl7Shy 0x471E1BAA27b8Cd1feF22eaCC3a6cE4003812263f "loadPackedData(bytes)(address,bytes)" 0xbd32bec48ce1d57e2980e1c6cf2fff085563171c6c65656c6f6e677869
 
  * 
  *  接收端
-   == Return ==
-    0: address 0x4Fb05Ec634211e81a783b8B67a5575E0e21623DB
+    == Return ==
+    0: address 0x5aEB3C8A00d97C41Fb76Dc5a3EEb4BFa6879b0cf
 
     == Logs ==
     Deploying contracts with the account: 0x355eb1c3D6dF0642b3abe2785e821C574837C79f
-    CrossCcip address: 0x4Fb05Ec634211e81a783b8B67a5575E0e21623DB
+    CrossCcip address: 0x5aEB3C8A00d97C41Fb76Dc5a3EEb4BFa6879b0cf
  */
 contract CrossCcipScript is Script {
     function run() external returns (address)  {
@@ -37,6 +38,7 @@ contract CrossCcipScript is Script {
         address deployerAddress = vm.addr(deployerPrivateKey);
         console.log("Deploying contracts with the account: %s", deployerAddress);
 
+        // https://docs.chain.link/ccip/directory/testnet/chain/polygon-testnet-amoy
         // 发送端的 router 地址 (Amoy)
         address routerCCIPClient = 0x9C32fCB86BF0f4a1A8921a9Fe46de3198bb884B2;
         // 发送端的 link 地址 (Amoy)

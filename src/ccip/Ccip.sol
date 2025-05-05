@@ -34,8 +34,8 @@ contract CrossCcip is ICrossChainClient, CCIPReceiver, ConfirmedOwner {
         address handler
     );
     event SenderAllowed(uint64 indexed destinationChainSelector, address indexed sender);
-    event SenderDisallowed(uint64 indexed sourceChainSelector, address indexed sender);
-    event HandlerUpdated(address indexed oldHandler, address indexed newHandler);
+    event LoadPackedData(address indexed target, bytes data);
+    event CombinePackedData(bytes data);
 
     address public  routerCCIPClientAddress;
     IRouterClient public  routerCCIPClient;
@@ -55,12 +55,15 @@ contract CrossCcip is ICrossChainClient, CCIPReceiver, ConfirmedOwner {
         address _owner,
         address _routerCCIPClient,
         address _routerCCIPReceiver,
-        address _linkTokenClient
+        address _linkTokenClient,
+        bool _approved // 是否允许发送消息
     ) ConfirmedOwner(_owner) CCIPReceiver(_routerCCIPReceiver) {
         _initializeCCIPClient(_routerCCIPClient, _linkTokenClient);
         // _initializeCCIPReceiver(_routerCCIPReceiver);
         allowedSenders[_owner] = true;
-        approveRouter();
+        if (_approved) {
+            approveRouter();
+        }
     }
 
     // function _initializeCCIPReceiver(
@@ -80,7 +83,7 @@ contract CrossCcip is ICrossChainClient, CCIPReceiver, ConfirmedOwner {
         routerCCIPClientAddress = _router;
     }
 
-    function approveRouter() internal {
+    function approveRouter() external onlyOwner() {
         require(routerCCIPClientAddress != address(0), "Router address cannot be zero");
         linkTokenClient.approve(routerCCIPClientAddress, type(uint256).max);
         approved = true;
@@ -97,7 +100,7 @@ contract CrossCcip is ICrossChainClient, CCIPReceiver, ConfirmedOwner {
     ) external override onlyAllowedSender(_destinationChainSelector, msg.sender) returns (bytes32 messageId) {
         require(_targetContract != address(0) && _receiver != address(0) && approved, "Invalid targetContract address");
         address linkToken = address(linkTokenClient);
-        bytes memory combinedData = abi.encodePacked(_targetContract, _targetCallData);
+        bytes memory combinedData = _combinePackedData(_targetContract, _targetCallData);
         Client.EVM2AnyMessage memory message = Client.EVM2AnyMessage({
             receiver: abi.encode(_receiver),
             data: combinedData,
@@ -127,6 +130,8 @@ contract CrossCcip is ICrossChainClient, CCIPReceiver, ConfirmedOwner {
         
        (address targetContract, bytes memory targetCallDataForHandler) = _loadPackedData(packedData);
 
+       emit LoadPackedData(targetContract, targetCallDataForHandler);
+
         bytes memory data = abi.encodeWithSignature(
             "handleCCIPMessage(uint64,address,bytes)",
             sourceChainSelector,
@@ -141,17 +146,24 @@ contract CrossCcip is ICrossChainClient, CCIPReceiver, ConfirmedOwner {
         } else {
             emit MessageReceived(message.messageId, sourceChainSelector, sender, targetCallDataForHandler, targetContract);
         }
-
     }
 
     function linkBalance(address account) public view returns (uint256) {
         return linkTokenClient.balanceOf(account);
     }
 
+    function getLinkBalance() public view returns (uint256) {
+        return linkTokenClient.balanceOf(address(this));
+    }
+
     function withdrawLink(address beneficiary) public onlyOwner {
         uint256 amount = linkTokenClient.balanceOf(address(this));
         if (amount == 0) revert NothingToWithdraw();
         linkTokenClient.transfer(beneficiary, amount);
+    }
+
+    function _combinePackedData(address target, bytes memory callData) internal pure returns (bytes memory) {
+        return abi.encodePacked(target, callData);
     }
 
     function _loadPackedData(bytes memory packedData) internal pure returns (address target, bytes memory callData) {
@@ -168,8 +180,16 @@ contract CrossCcip is ICrossChainClient, CCIPReceiver, ConfirmedOwner {
             }
     }
 
-    function loadPackedData (bytes memory packedData) public pure returns (address target, bytes memory callData) {
-        return _loadPackedData(packedData);
+    function loadPackedData (bytes memory packedData) public returns (address target, bytes memory callData) {
+        (address _target, bytes memory _callData) = _loadPackedData(packedData);
+        emit LoadPackedData(_target, _callData);
+        return (_target, _callData);
+    }
+
+    function combinePackedData(address target, bytes memory callData) public returns (bytes memory) {
+        bytes memory _returnData = _combinePackedData(target, callData);
+        emit CombinePackedData(_returnData);
+        return _returnData;
     }
 
 }
