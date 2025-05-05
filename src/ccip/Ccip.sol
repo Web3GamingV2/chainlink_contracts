@@ -55,15 +55,11 @@ contract CrossCcip is ICrossChainClient, CCIPReceiver, ConfirmedOwner {
         address _owner,
         address _routerCCIPClient,
         address _routerCCIPReceiver,
-        address _linkTokenClient,
-        bool _approved // 是否允许发送消息
+        address _linkTokenClient
     ) ConfirmedOwner(_owner) CCIPReceiver(_routerCCIPReceiver) {
         _initializeCCIPClient(_routerCCIPClient, _linkTokenClient);
         // _initializeCCIPReceiver(_routerCCIPReceiver);
         allowedSenders[_owner] = true;
-        if (_approved) {
-            approveRouter();
-        }
     }
 
     // function _initializeCCIPReceiver(
@@ -99,7 +95,7 @@ contract CrossCcip is ICrossChainClient, CCIPReceiver, ConfirmedOwner {
         uint256 _callbackGasLimit // 980_000
     ) external override onlyAllowedSender(_destinationChainSelector, msg.sender) returns (bytes32 messageId) {
         require(_targetContract != address(0) && _receiver != address(0) && approved, "Invalid targetContract address");
-        address linkToken = address(linkTokenClient);
+        address linkTokenAdress = address(linkTokenClient);
         bytes memory combinedData = _combinePackedData(_targetContract, _targetCallData);
         Client.EVM2AnyMessage memory message = Client.EVM2AnyMessage({
             receiver: abi.encode(_receiver),
@@ -108,18 +104,44 @@ contract CrossCcip is ICrossChainClient, CCIPReceiver, ConfirmedOwner {
             extraArgs: Client._argsToBytes(
                 Client.EVMExtraArgsV1({gasLimit: _callbackGasLimit})
             ),
-            feeToken: linkToken
+            feeToken: linkTokenAdress
         });
-
         uint256 fees = routerCCIPClient.getFee(_destinationChainSelector, message);
         uint256 currentBalance = linkTokenClient.balanceOf(address(this));
         if (fees > currentBalance) {
             revert NotEnoughBalance(currentBalance, fees);
         }
         messageId = routerCCIPClient.ccipSend(_destinationChainSelector, message);
-        emit MessageSent(messageId, _destinationChainSelector, _receiver, combinedData, linkToken, fees);
+
+        emit MessageSent(messageId, _destinationChainSelector, _receiver, combinedData, linkTokenAdress, fees);
 
         return messageId;
+    }
+
+    function sendCcipNative(
+        uint64 _destinationChainSelector, // 目标链的 selector
+        address _receiver, // 目标链 receiver 的合约地址就是 执行 _ccipReceive 的合约地址
+        address _targetContract, // 目标链被调用的合约地址
+        bytes calldata _targetCallData, // 目标链被调用的合约的函数 一般是 _ccipReceive 的 message.data
+        uint256 _callbackGasLimit // 980_000
+    ) external payable onlyAllowedSender(_destinationChainSelector, msg.sender) returns (bytes32 messageId) {
+        require(_targetContract!= address(0) && _receiver!= address(0) && approved, "Invalid targetContract address");
+        bytes memory combinedData = _combinePackedData(_targetContract, _targetCallData);
+        Client.EVM2AnyMessage memory message = Client.EVM2AnyMessage({
+             receiver: abi.encode(_receiver),
+            data: combinedData,
+            tokenAmounts: new Client.EVMTokenAmount[](0),
+            extraArgs: Client._argsToBytes(
+                Client.EVMExtraArgsV1({gasLimit: _callbackGasLimit})
+            ),
+            feeToken: address(0)
+        });
+        uint256 fees = routerCCIPClient.getFee(_destinationChainSelector, message);
+
+        require(msg.value >= fees, "Insufficient native token balance");
+        messageId = routerCCIPClient.ccipSend{value: msg.value}(_destinationChainSelector, message);
+
+        emit MessageSent(messageId, _destinationChainSelector, _receiver, combinedData, address(0), msg.value);
     }
 
      // 消息接收方指定目标地址
