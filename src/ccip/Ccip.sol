@@ -33,7 +33,7 @@ contract CrossCcip is ICrossChainClient, CCIPReceiver, ConfirmedOwner {
         bytes data,
         address handler
     );
-    event SenderAllowed(uint64 indexed destinationChainSelector, address indexed sender);
+    event SenderAllowed(address indexed sender, bool allowed);
     event LoadPackedData(address indexed target, bytes data);
     event CombinePackedData(bytes data);
 
@@ -214,4 +214,20 @@ contract CrossCcip is ICrossChainClient, CCIPReceiver, ConfirmedOwner {
         return _returnData;
     }
 
+    function addAllowedSender(address _sender) external onlyOwner {
+        require(_sender!= address(0), "Sender cannot be zero address");
+        allowedSenders[_sender] = true;
+        emit SenderAllowed(_sender, true);
+    }
+
+    function removeAllowedSender(address _sender) external onlyOwner {
+        require(_sender!= address(0), "Sender cannot be zero address");
+        allowedSenders[_sender] = false;
+        emit SenderAllowed(_sender, false);
+    }
+
+    function isAllowedSender(address _sender) external view returns (bool) {
+        return allowedSenders[_sender];
+    }
+    
 }

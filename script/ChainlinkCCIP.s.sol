@@ -17,9 +17,10 @@ import {CrossCcip} from "../src/ccip/Ccip.sol";
     Deploying contracts with the account: 0x355eb1c3D6dF0642b3abe2785e821C574837C79f
     CrossCcip address: 0xF679cc94047178F59804a023863d3b6272755eC4
 
-    cast send --rpc-url https://polygon-amoy.g.alchemy.com/v2/vkZ5WPCV0qB9Gye9sajMsn9YhdSl7Shy --private-key $WEB3GAMING_PRIVATE_KEY 0xF679cc94047178F59804a023863d3b6272755eC4 "sendCcip(uint64,address,address,bytes,uint256)(bytes32)" 16015286601757825753 0xAD67AaBeA95De16F27413f84430b96eB942644d0 0xdE046C3aF9Af4dA935D7DD941b165c966f57eC5D 0x6c65656c6f6e677869 980000
+    cast send --rpc-url https://polygon-amoy.g.alchemy.com/v2/vkZ5WPCV0qB9Gye9sajMsn9YhdSl7Shy --private-key $WEB3GAMING_PRIVATE_KEY 0xF679cc94047178F59804a023863d3b6272755eC4 "sendCcip(uint64,address,address,bytes,uint256)()" 16015286601757825753 0xAD67AaBeA95De16F27413f84430b96eB942644d0 0xdE046C3aF9Af4dA935D7DD941b165c966f57eC5D 0x6c65656c6f6e677869 980000
     cast send --rpc-url https://polygon-amoy.g.alchemy.com/v2/vkZ5WPCV0qB9Gye9sajMsn9YhdSl7Shy --private-key $WEB3GAMING_PRIVATE_KEY 0xF679cc94047178F59804a023863d3b6272755eC4 "sendCcipNative(uint64,address,address,bytes,uint256)(bytes32)" 16015286601757825753 0xAD67AaBeA95De16F27413f84430b96eB942644d0 0xdE046C3aF9Af4dA935D7DD941b165c966f57eC5D 0x6c65656c6f6e677869 980000
     cast send --rpc-url https://polygon-amoy.g.alchemy.com/v2/vkZ5WPCV0qB9Gye9sajMsn9YhdSl7Shy --private-key $WEB3GAMING_PRIVATE_KEY 0xF679cc94047178F59804a023863d3b6272755eC4 "approveRouter()"
+    cast send --rpc-url https://polygon-amoy.g.alchemy.com/v2/vkZ5WPCV0qB9Gye9sajMsn9YhdSl7Shy --private-key $WEB3GAMING_PRIVATE_KEY 0xF679cc94047178F59804a023863d3b6272755eC4 "addAllowedSender(address)"
     cast call --rpc-url https://polygon-amoy.g.alchemy.com/v2/vkZ5WPCV0qB9Gye9sajMsn9YhdSl7Shy 0xF679cc94047178F59804a023863d3b6272755eC4 "loadPackedData(bytes)(address,bytes)" 0xad67aabea95de16f27413f84430b96eb942644d06c65656c6f6e677869
     cast call --rpc-url https://polygon-amoy.g.alchemy.com/v2/vkZ5WPCV0qB9Gye9sajMsn9YhdSl7Shy 0xF679cc94047178F59804a023863d3b6272755eC4 "approved()(bool)"
     cast call --rpc-url https://polygon-amoy.g.alchemy.com/v2/vkZ5WPCV0qB9Gye9sajMsn9YhdSl7Shy 0xF679cc94047178F59804a023863d3b6272755eC4 "getLinkBalance()(uint256)"
