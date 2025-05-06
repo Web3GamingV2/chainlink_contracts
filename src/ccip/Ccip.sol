@@ -111,11 +111,11 @@ contract CrossCcip is ICrossChainClient, CCIPReceiver, ConfirmedOwner {
         if (fees > currentBalance) {
             revert NotEnoughBalance(currentBalance, fees);
         }
-        messageId = routerCCIPClient.ccipSend(_destinationChainSelector, message);
+        bytes32 _messageId = routerCCIPClient.ccipSend(_destinationChainSelector, message);
 
-        emit MessageSent(messageId, _destinationChainSelector, _receiver, combinedData, linkTokenAdress, fees);
+        emit MessageSent(_messageId, _destinationChainSelector, _receiver, combinedData, linkTokenAdress, fees);
 
-        return messageId;
+        return _messageId;
     }
 
     function sendCcipNative(
@@ -139,9 +139,11 @@ contract CrossCcip is ICrossChainClient, CCIPReceiver, ConfirmedOwner {
         uint256 fees = routerCCIPClient.getFee(_destinationChainSelector, message);
 
         require(msg.value >= fees, "Insufficient native token balance");
-        messageId = routerCCIPClient.ccipSend{value: msg.value}(_destinationChainSelector, message);
+        bytes32 _messageId = routerCCIPClient.ccipSend{value: msg.value}(_destinationChainSelector, message);
 
-        emit MessageSent(messageId, _destinationChainSelector, _receiver, combinedData, address(0), msg.value);
+        emit MessageSent(_messageId, _destinationChainSelector, _receiver, combinedData, address(0), msg.value);
+
+        return _messageId;
     }
 
      // 消息接收方指定目标地址
