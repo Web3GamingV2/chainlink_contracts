@@ -17,7 +17,7 @@ contract CrossCcip is ICrossChainClient, CCIPReceiver, ConfirmedOwner {
     error InvalidHandlerAddress(address handler); // If the handler address is invalid
     error HandlerCallFailed(); // If the call to the handler contract fails
 
-    error TargetCallFailed(address target, bytes data, bytes reason);
+    error InvalidHandlerCallFailed(address target, bytes data, bytes reason);
     error InvalidPackedDataLength(uint256 length);
 
     // Custom errors
@@ -152,6 +152,7 @@ contract CrossCcip is ICrossChainClient, CCIPReceiver, ConfirmedOwner {
         uint64 sourceChainSelector = message.sourceChainSelector;
         bytes memory packedData = message.data;
         
+        // 拆解开合约 + callData
        (address targetContract, bytes memory targetCallDataForHandler) = _loadPackedData(packedData);
 
        emit LoadPackedData(targetContract, targetCallDataForHandler);
@@ -166,7 +167,7 @@ contract CrossCcip is ICrossChainClient, CCIPReceiver, ConfirmedOwner {
         (bool success,) = address(targetContract).call(data);
 
         if (!success) {
-            revert TargetCallFailed(targetContract, targetCallDataForHandler, "Call to target contract failed");
+            revert InvalidHandlerCallFailed(targetContract, targetCallDataForHandler, "Call to target contract failed");
         } else {
             emit MessageReceived(message.messageId, sourceChainSelector, sender, targetCallDataForHandler, targetContract);
         }
