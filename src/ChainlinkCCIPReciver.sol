@@ -9,14 +9,16 @@ contract ChainlinkCCIPReciver is ICrossChainReceiverHandler {
      event CCIPMessageReceived(
         uint64 indexed sourceChainSelector,
         address sender,
+        bytes32 messageId,
         bytes data
     );
 
     function handleCCIPMessage(
         uint64 sourceChainSelector,
         address sender,
+        bytes32 messageId,
         bytes calldata data
     ) external override {
-        emit CCIPMessageReceived(sourceChainSelector, sender, data); // Emit an event to indicate the rando
+        emit CCIPMessageReceived(sourceChainSelector, sender, messageId, data); // Emit an event to indicate the rando
     }
 }

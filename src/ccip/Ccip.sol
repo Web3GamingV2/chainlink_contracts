@@ -151,6 +151,7 @@ contract CrossCcip is ICrossChainClient, CCIPReceiver, ConfirmedOwner {
         address sender = abi.decode(message.sender, (address));
         uint64 sourceChainSelector = message.sourceChainSelector;
         bytes memory packedData = message.data;
+        bytes32 messageId = message.messageId;
         
         // 拆解开合约 + callData
        (address targetContract, bytes memory targetCallDataForHandler) = _loadPackedData(packedData);
@@ -158,9 +159,10 @@ contract CrossCcip is ICrossChainClient, CCIPReceiver, ConfirmedOwner {
        emit LoadPackedData(targetContract, targetCallDataForHandler);
 
         bytes memory data = abi.encodeWithSignature(
-            "handleCCIPMessage(uint64,address,bytes)",
+            "handleCCIPMessage(uint64,address,bytes32,bytes)",
             sourceChainSelector,
             sender,
+            messageId,
             targetCallDataForHandler
         );
 

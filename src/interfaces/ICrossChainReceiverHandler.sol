@@ -17,6 +17,7 @@ interface ICrossChainReceiverHandler {
     function handleCCIPMessage(
         uint64 sourceChainSelector,
         address sender,
+        bytes32 messageId,
         bytes calldata data
     ) external;
 }

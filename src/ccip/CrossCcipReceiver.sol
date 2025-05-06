@@ -52,7 +52,7 @@ contract CrossCcipReceiver is CCIPReceiver, ConfirmedOwner {
         emit MessageReceived(message.messageId, sourceChainSelector, sender, targetCallDataForHandler, targetContract);
 
         // Call the handler contract to process the message
-        try ICrossChainReceiverHandler(targetContract).handleCCIPMessage(sourceChainSelector, sender, targetCallDataForHandler) {
+        try ICrossChainReceiverHandler(targetContract).handleCCIPMessage(sourceChainSelector, sender, message.messageId, targetCallDataForHandler) {
         } catch (bytes memory reason) {
              revert(string(abi.encodePacked("HandlerCallFailed: ", string(reason))));
         }
