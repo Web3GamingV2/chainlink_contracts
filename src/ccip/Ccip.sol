@@ -106,6 +106,7 @@ contract CrossCcip is ICrossChainClient, CCIPReceiver, ConfirmedOwner {
             ),
             feeToken: linkTokenAdress
         });
+        
         uint256 fees = routerCCIPClient.getFee(_destinationChainSelector, message);
         uint256 currentBalance = linkTokenClient.balanceOf(address(this));
         if (fees > currentBalance) {
@@ -114,34 +115,6 @@ contract CrossCcip is ICrossChainClient, CCIPReceiver, ConfirmedOwner {
         bytes32 _messageId = routerCCIPClient.ccipSend(_destinationChainSelector, message);
 
         emit MessageSent(_messageId, _destinationChainSelector, _receiver, combinedData, linkTokenAdress, fees);
-
-        return _messageId;
-    }
-
-    function sendCcipNative(
-        uint64 _destinationChainSelector, // 目标链的 selector
-        address _receiver, // 目标链 receiver 的合约地址就是 执行 _ccipReceive 的合约地址
-        address _targetContract, // 目标链被调用的合约地址
-        bytes calldata _targetCallData, // 目标链被调用的合约的函数 一般是 _ccipReceive 的 message.data
-        uint256 _callbackGasLimit // 980_000
-    ) external payable onlyAllowedSender(_destinationChainSelector, msg.sender) returns (bytes32 messageId) {
-        require(_targetContract!= address(0) && _receiver!= address(0) && approved, "Invalid targetContract address");
-        bytes memory combinedData = _combinePackedData(_targetContract, _targetCallData);
-        Client.EVM2AnyMessage memory message = Client.EVM2AnyMessage({
-             receiver: abi.encode(_receiver),
-            data: combinedData,
-            tokenAmounts: new Client.EVMTokenAmount[](0),
-            extraArgs: Client._argsToBytes(
-                Client.EVMExtraArgsV1({gasLimit: _callbackGasLimit})
-            ),
-            feeToken: address(0)
-        });
-        uint256 fees = routerCCIPClient.getFee(_destinationChainSelector, message);
-
-        require(msg.value >= fees, "Insufficient native token balance");
-        bytes32 _messageId = routerCCIPClient.ccipSend{value: msg.value}(_destinationChainSelector, message);
-
-        emit MessageSent(_messageId, _destinationChainSelector, _receiver, combinedData, address(0), msg.value);
 
         return _messageId;
     }
