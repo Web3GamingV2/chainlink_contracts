@@ -10,12 +10,12 @@ import {CrossCcip} from "../src/ccip/Ccip.sol";
  *  接收端: forge script script/ChainlinkCCIP.s.sol:CrossCcipScript --rpc-url $WEB3GAMING_ALCHEMY_RPC_URL --private-key $WEB3GAMING_PRIVATE_KEY --broadcast --verify --etherscan-api-key $WEB3GAMING_ETHERSCAN_API_KEY
  *  
  *  发送端
-  == Return ==
-    0: address 0xF679cc94047178F59804a023863d3b6272755eC4
+    == Return ==
+    0: address 0x3988dA150B57e8E1a8A6bA579f30956486Bcd209
 
     == Logs ==
     Deploying contracts with the account: 0x355eb1c3D6dF0642b3abe2785e821C574837C79f
-    CrossCcip address: 0xF679cc94047178F59804a023863d3b6272755eC4
+    CrossCcip address: 0x3988dA150B57e8E1a8A6bA579f30956486Bcd209
 
     cast send --rpc-url https://polygon-amoy.g.alchemy.com/v2/vkZ5WPCV0qB9Gye9sajMsn9YhdSl7Shy --private-key $WEB3GAMING_PRIVATE_KEY 0xF679cc94047178F59804a023863d3b6272755eC4 "sendCcip(uint64,address,address,bytes,uint256)()" 16015286601757825753 0xAD67AaBeA95De16F27413f84430b96eB942644d0 0xdE046C3aF9Af4dA935D7DD941b165c966f57eC5D 0x6c65656c6f6e677869 980000
     cast send --rpc-url https://polygon-amoy.g.alchemy.com/v2/vkZ5WPCV0qB9Gye9sajMsn9YhdSl7Shy --private-key $WEB3GAMING_PRIVATE_KEY 0xF679cc94047178F59804a023863d3b6272755eC4 "sendCcipNative(uint64,address,address,bytes,uint256)(bytes32)" 16015286601757825753 0xAD67AaBeA95De16F27413f84430b96eB942644d0 0xdE046C3aF9Af4dA935D7DD941b165c966f57eC5D 0x6c65656c6f6e677869 980000
@@ -25,17 +25,15 @@ import {CrossCcip} from "../src/ccip/Ccip.sol";
     cast call --rpc-url https://polygon-amoy.g.alchemy.com/v2/vkZ5WPCV0qB9Gye9sajMsn9YhdSl7Shy 0xF679cc94047178F59804a023863d3b6272755eC4 "approved()(bool)"
     cast call --rpc-url https://polygon-amoy.g.alchemy.com/v2/vkZ5WPCV0qB9Gye9sajMsn9YhdSl7Shy 0xF679cc94047178F59804a023863d3b6272755eC4 "getLinkBalance()(uint256)"
     cast call --rpc-url https://polygon-amoy.g.alchemy.com/v2/vkZ5WPCV0qB9Gye9sajMsn9YhdSl7Shy 0xF679cc94047178F59804a023863d3b6272755eC4 "combinePackedData(address,bytes)(bytes)" 0xAD67AaBeA95De16F27413f84430b96eB942644d0 0x6c65656c6f6e677869
-    
-    
 
  * 
  *  接收端
-   == Return ==
-    0: address 0xAD67AaBeA95De16F27413f84430b96eB942644d0
+    == Return ==
+    0: address 0x829c60E3fe2a3b419898355FE0051C1C7e463ED7
 
     == Logs ==
     Deploying contracts with the account: 0x355eb1c3D6dF0642b3abe2785e821C574837C79f
-    CrossCcip address: 0xAD67AaBeA95De16F27413f84430b96eB942644d0
+    CrossCcip address: 0x829c60E3fe2a3b419898355FE0051C1C7e463ED7
 
  */
 contract CrossCcipScript is Script {
