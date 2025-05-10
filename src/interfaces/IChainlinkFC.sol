@@ -14,6 +14,7 @@ interface IChainlinkFC {
 
     function sendRequest(
         uint64 subscriptionId,
+        bytes32 s_donId,
         string[] calldata args,
         string calldata source, // Allow specifying source per request
         uint32 gasLimit         // Allow specifying gasLimit per request

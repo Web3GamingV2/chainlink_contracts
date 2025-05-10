@@ -12,7 +12,6 @@ contract ChainlinkFC is FunctionsClient, ConfirmedOwner, IChainlinkFC {
     using FunctionsRequest for FunctionsRequest.Request;
 
     mapping(bytes32 => bytes) public s_requests;
-    bytes32 public s_donId;
     address public s_router;
     address public proxyRouter;
     mapping(address => bool) public allowedCallers;
@@ -43,11 +42,9 @@ contract ChainlinkFC is FunctionsClient, ConfirmedOwner, IChainlinkFC {
     constructor(
         address _owner,
         address _proxyRouter,
-        address _router,
-        bytes32 _donId
+        address _router
     ) FunctionsClient(_router) ConfirmedOwner(_owner) {
         s_router = _router;
-        s_donId = _donId;
         proxyRouter = _proxyRouter;
         allowedCallers[_owner] = true;
         allowedCallers[_proxyRouter] = true;
@@ -62,6 +59,7 @@ contract ChainlinkFC is FunctionsClient, ConfirmedOwner, IChainlinkFC {
      */
     function sendRequest(
         uint64 subscriptionId,
+        bytes32 s_donId,
         string[] calldata args, 
         string calldata source,
         uint32 callbackGasLimit
@@ -75,8 +73,25 @@ contract ChainlinkFC is FunctionsClient, ConfirmedOwner, IChainlinkFC {
         if (args.length > 0) req.setArgs(args); // Set the arguments for the request
 
         bytes32 s_lastRequestId = _sendRequest(req.encodeCBOR(), subscriptionId, callbackGasLimit, s_donId);
-        emit RequestSentReceived(requestId, msg.sender); // Emit an event for the request ID and callee address
+        emit RequestSentReceived(s_lastRequestId, msg.sender); // Emit an event for the request ID and callee address
 
+        return s_lastRequestId;
+    }
+
+
+    function sendRequestCBOR(
+        bytes memory request,
+        uint64 subscriptionId,
+        bytes32 s_donId,
+        uint32 gasLimit
+    ) external onlyOwner returns (bytes32 requestId) {
+        bytes32 s_lastRequestId = _sendRequest(
+            request,
+            subscriptionId,
+            gasLimit,
+            s_donId
+        );
+        emit RequestSentReceived(s_lastRequestId, msg.sender); // Emit an event for the request ID and callee address
         return s_lastRequestId;
     }
 
@@ -105,7 +120,7 @@ contract ChainlinkFC is FunctionsClient, ConfirmedOwner, IChainlinkFC {
         }
         return _response;
     }
-
+    
     function removeResponse(bytes32 _requestId) external onlyOwner {
         bytes memory _response = s_requests[_requestId];
         if (_response.length != 0) {
