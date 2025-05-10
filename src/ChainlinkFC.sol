@@ -78,13 +78,12 @@ contract ChainlinkFC is FunctionsClient, ConfirmedOwner, IChainlinkFC {
         return s_lastRequestId;
     }
 
-
     function sendRequestCBOR(
         bytes memory request,
         uint64 subscriptionId,
         bytes32 s_donId,
         uint32 gasLimit
-    ) external onlyOwner returns (bytes32 requestId) {
+    ) external onlyOwnerOrAllowedCaller(msg.sender) returns (bytes32 requestId) {
         bytes32 s_lastRequestId = _sendRequest(
             request,
             subscriptionId,
