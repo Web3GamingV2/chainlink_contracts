@@ -10,7 +10,7 @@ import {ChainlinkFCReciver} from "../src/ChainlinkFCReciver.sol";
 /**
 == Logs ==
   Deploying contracts with the account: 0x355eb1c3D6dF0642b3abe2785e821C574837C79f
-  GettingStartedVRFConsumer address: 0x95f30aA4BB54cecd348AEb65A7a40da96e759419
+  GettingStartedVRFConsumer address: 0x064214BCd8f1e3f4397A039eEA210bA5B0821Fe8
   cast send --rpc-url $WEB3GAMING_ALCHEMY_RPC_URL --private-key $WEB3GAMING_PRIVATE_KEY 0x95f30aA4BB54cecd348AEb65A7a40da96e759419 "requestFunction(uint64,string[],uint32)(bytes32)" 4605 "[1]" 300000
 */
 
@@ -21,7 +21,7 @@ contract ChainlinkFCReciverScript is Script {
         uint256 deployerPrivateKey = vm.parseUint(string.concat("0x", privateKey));
         address deployerAddress = vm.addr(deployerPrivateKey);
         console.log("Deploying contracts with the account: %s", deployerAddress);
-        address fcAddress = 0x90f881b6824928B54B318ff28a2FFb4543F7ec16;
+        address fcAddress = 0xc33c5f7e1d1Cb2E3D8a3d8d3a105Aee5561AB5D2;
         vm.startBroadcast(deployerPrivateKey);
         // 部署合约
         ChainlinkFCReciver consumer = new ChainlinkFCReciver(fcAddress);
